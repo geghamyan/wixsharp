@@ -23,7 +23,7 @@ namespace WixSharp.UI.Forms
 
         void InstallDirDialog_Load(object sender, EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
 
             installDirProperty = MsiRuntime.Session.Property("WixSharp_UI_INSTALLDIR");
 

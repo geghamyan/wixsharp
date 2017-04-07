@@ -24,7 +24,7 @@ namespace WixSharp.UI.Forms
 
         void ProgressDialog_Load(object sender, EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
 
             this.waitPrompt.Text = MsiRuntime.Session.Property("UAC_WARNING");
 

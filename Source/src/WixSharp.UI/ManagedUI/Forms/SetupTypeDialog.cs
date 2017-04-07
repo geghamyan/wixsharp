@@ -44,7 +44,7 @@ namespace WixSharp.UI.Forms
 
         void complete_Click(object sender, System.EventArgs e)
         {
-            string[] names = MsiRuntime.Session.Features.Select(x => x.Name).ToArray();
+            string[] names = MsiRuntime.Session.MsiSession.Features.Select(x => x.Name).ToArray();
             MsiRuntime.Session["ADDLOCAL"] = names.Join(",");
 
             int index = Shell.Dialogs.IndexOf(ProgressDialog);
@@ -71,7 +71,7 @@ namespace WixSharp.UI.Forms
 
         void SetupTypeDialog_Load(object sender, System.EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
 
             ResetLayout();
         }

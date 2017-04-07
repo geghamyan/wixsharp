@@ -29,9 +29,9 @@ namespace WixSharp
         /// Shows the modal window of the MSI UI. This method is called by the <see cref="T:Microsoft.Deployment.WindowsInstaller.IEmbeddedUI"/>
         /// when it is initialized at runtime.
         /// </summary>
-        /// <param name="msiRuntime">The MSI runtime.</param>
+        /// <param name="runtime">The MSI runtime.</param>
         /// <param name="ui">The MSI external/embedded UI.</param>
-        void ShowModal(MsiRuntime msiRuntime, IManagedUI ui);
+        void ShowModal(IRuntime runtime, IManagedUI ui);
 
         /// <summary>
         /// Called when MSI execution is complete.
@@ -77,7 +77,7 @@ namespace WixSharp
         /// The runtime context.
         /// </value>
         ///
-        internal MsiRuntime MsiRuntime { get; set; }
+        internal IRuntime MsiRuntime { get; set; }
 
         /// <summary>
         /// Gets or sets the UI.
@@ -214,16 +214,16 @@ namespace WixSharp
         /// Shows the modal window of the MSI UI. This method is called by the <see cref="T:Microsoft.Deployment.WindowsInstaller.IEmbeddedUI" />
         /// when it is initialized at runtime.
         /// </summary>
-        /// <param name="msiRuntime">The MSI runtime.</param>
+        /// <param name="runtime">The MSI runtime.</param>
         /// <param name="ui">The MSI external/embedded UI.</param>
-        public void ShowModal(MsiRuntime msiRuntime, IManagedUI ui)
+        public void ShowModal(IRuntime runtime, IManagedUI ui)
         {
             // Debug.Assert(false);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             UI = ui;
-            MsiRuntime = msiRuntime;
+            MsiRuntime = runtime;
             Tasks.UILocalize = text => text.LocalizeWith(msiRuntime.Localize);
 
             UACRevealer.Enabled = !MsiRuntime.Session.Property("UAC_REVEALER_ENABLED").IsEmpty();
@@ -258,7 +258,7 @@ namespace WixSharp
                         MsiRuntime.Data["WIXSHARP_MANAGED_UI_HANDLE"] = shellView.Handle.ToString();
                         try
                         {
-                            var data = MsiRuntime.Session.GetEmbeddedData("ui_shell_icon");
+                            var data = MsiRuntime.Session.GetResourceData("ui_shell_icon");
                             using (var stream = new System.IO.MemoryStream(data))
                                 shellView.Icon = new Icon(stream);
                         }
@@ -271,7 +271,6 @@ namespace WixSharp
                             // simply called when Shell is loaded but not when dialogs are progressing in the sequence.
                             MsiRuntime.Session.Log("UILoaded returned " + result);
                         }
-                        MsiRuntime.Data.MergeReplace(MsiRuntime.Session["WIXSHARP_RUNTIME_DATA"]); ; //data may be changed in the client handler
                     };
 
                     if (result == ActionResult.SkipRemainingActions)

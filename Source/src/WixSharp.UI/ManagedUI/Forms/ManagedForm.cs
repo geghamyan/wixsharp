@@ -21,7 +21,7 @@ namespace WixSharp.UI.Forms
     ///
     ///     void CustomDialog_Load(object sender, EventArgs e)
     ///     {
-    ///         banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+    ///         banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
     ///     }
     ///
     ///     void back_Click(object sender, EventArgs e)

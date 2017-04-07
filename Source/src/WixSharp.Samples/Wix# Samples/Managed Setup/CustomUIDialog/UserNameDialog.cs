@@ -16,7 +16,7 @@ namespace MyProduct
 
         void dialog_Load(object sender, EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
 
             name.Text = Defaults.UserName;
             password.Text = MsiRuntime.Session["PASSWORD"];

@@ -105,6 +105,9 @@
     <None Include="ManagedUI\Forms\WelcomeDialog.scaling.cs">
       <SubType>Form</SubType>
     </None>
+    <Compile Include="ManagedUI\IRuntime.cs" />
+    <Compile Include="ManagedUI\ISession.cs" />
+    <Compile Include="ManagedUI\MsiSessionAdapter.cs" />
     <Compile Include="ManagedUI\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

@@ -36,22 +36,33 @@ namespace WixSharp
     /// <summary>
     /// Represents MSI runtime context. This class is to be used by ManagedUI dialogs to interact with the MSI session.
     /// </summary>
-    public class MsiRuntime
+    public class MsiRuntime : IRuntime
     {
         /// <summary>
         /// Starts the execution of the MSI installation.
         /// </summary>
-        public System.Action StartExecute;
+        public System.Action StartExecute { get; set; }
 
         /// <summary>
         /// Cancels the execution of the MSI installation, which is already started (progress is displayed).
         /// </summary>
-        public System.Action CancelExecute;
+        public System.Action CancelExecute { get; set; }
 
         /// <summary>
         /// The session object.
         /// </summary>
-        public Session Session;
+        public ISession Session { get; }
+
+        /// <summary>
+        /// Invokes Client Handlers
+        /// </summary>
+        /// <param name="eventName"></param>
+        /// <param name="UIShell"></param>
+        /// <returns></returns>
+        public ActionResult InvokeClientHandlers(string eventName, IShellView UIShell = null)
+        {
+            return ManagedProject.InvokeClientHandlers(Session.MsiSession, eventName, UIShell);
+        }
 
         //DOESN'T work reliably. For example if no InstallDir dialog is displayed the MSI session does not have "INSTALLDIR" property initialized.
         //The other properties (e.g. UI Level) are even never available at all.
@@ -61,7 +72,7 @@ namespace WixSharp
         {
             try
             {
-                if (Session.IsActive())
+                if (Session.MsiSession.IsActive())
                 {
                     Data["INSTALLDIR"] = Session["INSTALLDIR"];
                     Data["Installed"] = Session["Installed"];
@@ -78,21 +89,24 @@ namespace WixSharp
         /// <summary>
         /// Repository of the session properties to be captured and transfered to the deferred CAs.
         /// </summary>
-        public Dictionary<string, string> Data = new Dictionary<string, string>();
+        public Dictionary<string, string> Data { get; } = new Dictionary<string, string>();
 
         /// <summary>
         /// Localization map.
         /// </summary>
         public ResourcesData UIText = new ResourcesData();
 
-        internal void FetchInstallDir()
+        /// <summary>
+        /// Fetches Install Directory
+        /// </summary>
+        public void FetchInstallDir()
         {
             string installDirProperty = this.Session.Property("WixSharp_UI_INSTALLDIR");
             string dir = this.Session.Property(installDirProperty);
             if (dir.IsNotEmpty())
                 InstallDir = dir; //user entered INSTALLDIR
             else
-                InstallDir = this.Session.GetDirectoryPath(installDirProperty); //default INSTALLDIR
+                InstallDir = this.Session.MsiSession.GetDirectoryPath(installDirProperty); //default INSTALLDIR
         }
 
         /// <summary>
@@ -101,10 +115,10 @@ namespace WixSharp
         /// <param name="session">The session.</param>
         public MsiRuntime(Session session)
         {
-            this.Session = session;
+            this.Session = new MsiSessionAdapter(session);
             try
             {
-                var bytes = Session.TryReadBinary("WixSharp_UIText");
+                var bytes = Session.MsiSession.TryReadBinary("WixSharp_UIText");
                 UIText.InitFromWxl(bytes);
 
                 ProductName = Session.Property("ProductName");
@@ -134,7 +148,7 @@ namespace WixSharp
         {
             try
             {
-                byte[] data = Session.ReadBinary(name);
+                byte[] data = Session.MsiSession.ReadBinary(name);
                 using (Stream s = new MemoryStream(data))
                     return (Bitmap)Bitmap.FromStream(s);
             }

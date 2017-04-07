@@ -54,7 +54,7 @@ namespace WixSharp.UI.Forms
 
             ReadOnlyTreeNode.Behavior.AttachTo(featuresTree, drawTextOnly);
 
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
             BuildFeaturesHierarchy();
 
             ResetLayout();
@@ -95,9 +95,9 @@ namespace WixSharp.UI.Forms
             //Cannot use MsiRuntime.Session.Features (FeatureInfo collection).
             //This WiX feature is just not implemented yet. All members except 'Name' throw InvalidHandeException
             //Thus instead of using FeatureInfo just collect the names and query database for the rest of the properties.
-            string[] names = MsiRuntime.Session.Features.Select(x => x.Name).ToArray();
+            string[] names = MsiRuntime.Session.MsiSession.Features.Select(x => x.Name).ToArray();
 
-            features = names.Select(name => new FeatureItem(MsiRuntime.Session, name)).ToArray();
+            features = names.Select(name => new FeatureItem(MsiRuntime.Session.MsiSession, name)).ToArray();
 
             //build the hierarchy tree
             var rootItems = features.Where(x => x.ParentName.IsEmpty())

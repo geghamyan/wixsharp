@@ -74,7 +74,7 @@ namespace WixSharp.UI.Forms
 
         void MaintenanceTypeDialog_Load(object sender, System.EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
 
             ResetLayout();
         }
