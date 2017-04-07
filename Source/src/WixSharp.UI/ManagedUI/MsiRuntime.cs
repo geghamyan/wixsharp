@@ -36,7 +36,60 @@ namespace WixSharp
     /// <summary>
     /// Represents MSI runtime context. This class is to be used by ManagedUI dialogs to interact with the MSI session.
     /// </summary>
-    public class MsiRuntime : IRuntime
+    public class MsiRuntime : InstallerRuntime
+    {
+        /// <summary>
+        /// The session object.
+        /// </summary>
+        public Session MsiSession { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MsiRuntime"/> class.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        public MsiRuntime(Session session) : base(new MsiSessionAdapter(session))
+        {
+            MsiSession = session;
+        }
+
+        /// <summary>
+        /// Invokes Client Handlers
+        /// </summary>
+        /// <param name="eventName"></param>
+        /// <param name="UIShell"></param>
+        /// <returns></returns>
+        public override ActionResult InvokeClientHandlers(string eventName, IShellView UIShell = null)
+        {
+            return ManagedProject.InvokeClientHandlers(MsiSession, eventName, UIShell);
+        }
+
+        //DOESN'T work reliably. For example if no InstallDir dialog is displayed the MSI session does not have "INSTALLDIR" property initialized.
+        //The other properties (e.g. UI Level) are even never available at all.
+        //It looks like Session is initialized/updated correctly for the 'custom actions' session but not for the 'Embedded UI' session.
+        //In fact because of these problems a session object can no longer be considered as a single connection point between all MSI runtime modules.
+        internal void CaptureSessionData()
+        {
+            try
+            {
+                if (MsiSession.IsActive())
+                {
+                    Data["INSTALLDIR"] = Session["INSTALLDIR"];
+                    Data["Installed"] = Session["Installed"];
+                    Data["REMOVE"] = Session["REMOVE"];
+                    Data["REINSTALL"] = Session["REINSTALL"];
+                    Data["UPGRADINGPRODUCTCODE"] = Session["UPGRADINGPRODUCTCODE"];
+                    Data["UILevel"] = Session["UILevel"];
+                    Data["WIXSHARP_MANAGED_UI_HANDLE"] = Session["WIXSHARP_MANAGED_UI_HANDLE"];
+                }
+            }
+            catch { }
+        }
+    }
+
+    /// <summary>
+    /// Represents MSI runtime context. This class is to be used by ManagedUI dialogs to interact with the MSI session.
+    /// </summary>
+    public class InstallerRuntime
     {
         /// <summary>
         /// Starts the execution of the MSI installation.
@@ -51,7 +104,7 @@ namespace WixSharp
         /// <summary>
         /// The session object.
         /// </summary>
-        public ISession Session { get; }
+        public readonly ISession Session;
 
         /// <summary>
         /// Invokes Client Handlers
@@ -59,31 +112,9 @@ namespace WixSharp
         /// <param name="eventName"></param>
         /// <param name="UIShell"></param>
         /// <returns></returns>
-        public ActionResult InvokeClientHandlers(string eventName, IShellView UIShell = null)
+        public virtual ActionResult InvokeClientHandlers(string eventName, IShellView UIShell = null)
         {
-            return ManagedProject.InvokeClientHandlers(Session.MsiSession, eventName, UIShell);
-        }
-
-        //DOESN'T work reliably. For example if no InstallDir dialog is displayed the MSI session does not have "INSTALLDIR" property initialized.
-        //The other properties (e.g. UI Level) are even never available at all.
-        //It looks like Session is initialized/updated correctly for the 'custom actions' session but not for the 'Embedded UI' session.
-        //In fact because of these problems a session object can no longer be considered as a single connection point between all MSI runtime modules.
-        internal void CaptureSessionData()
-        {
-            try
-            {
-                if (Session.MsiSession.IsActive())
-                {
-                    Data["INSTALLDIR"] = Session["INSTALLDIR"];
-                    Data["Installed"] = Session["Installed"];
-                    Data["REMOVE"] = Session["REMOVE"];
-                    Data["REINSTALL"] = Session["REINSTALL"];
-                    Data["UPGRADINGPRODUCTCODE"] = Session["UPGRADINGPRODUCTCODE"];
-                    Data["UILevel"] = Session["UILevel"];
-                    Data["WIXSHARP_MANAGED_UI_HANDLE"] = Session["WIXSHARP_MANAGED_UI_HANDLE"];
-                }
-            }
-            catch { }
+            return ActionResult.Success;
         }
 
         /// <summary>
@@ -96,29 +127,26 @@ namespace WixSharp
         /// </summary>
         public ResourcesData UIText = new ResourcesData();
 
-        /// <summary>
-        /// Fetches Install Directory
-        /// </summary>
-        public void FetchInstallDir()
+        internal void FetchInstallDir()
         {
             string installDirProperty = this.Session.Property("WixSharp_UI_INSTALLDIR");
             string dir = this.Session.Property(installDirProperty);
             if (dir.IsNotEmpty())
                 InstallDir = dir; //user entered INSTALLDIR
             else
-                InstallDir = this.Session.MsiSession.GetDirectoryPath(installDirProperty); //default INSTALLDIR
+                InstallDir = this.Session.GetDirectoryPath(installDirProperty); //default INSTALLDIR
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MsiRuntime"/> class.
+        /// Initializes a new instance of the <see cref="InstallerRuntime"/> class.
         /// </summary>
         /// <param name="session">The session.</param>
-        public MsiRuntime(Session session)
+        public InstallerRuntime(ISession session)
         {
-            this.Session = new MsiSessionAdapter(session);
+            this.Session = session;
             try
             {
-                var bytes = Session.MsiSession.TryReadBinary("WixSharp_UIText");
+                var bytes = TryReadBinary(Session, "WixSharp_UIText");
                 UIText.InitFromWxl(bytes);
 
                 ProductName = Session.Property("ProductName");
@@ -148,12 +176,29 @@ namespace WixSharp
         {
             try
             {
-                byte[] data = Session.MsiSession.ReadBinary(name);
+                byte[] data = ReadBinary(Session, name);
                 using (Stream s = new MemoryStream(data))
                     return (Bitmap)Bitmap.FromStream(s);
             }
             catch { }
             return null;
+        }
+
+        private static byte[] ReadBinary(ISession session, string binary)
+        {
+            return session.GetResourceData(binary);
+        }
+
+        private static byte[] TryReadBinary(ISession session, string binary)
+        {
+            try
+            {
+                return ReadBinary(session, binary);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>

@@ -31,7 +31,7 @@ namespace WixSharp
         /// </summary>
         /// <param name="runtime">The MSI runtime.</param>
         /// <param name="ui">The MSI external/embedded UI.</param>
-        void ShowModal(IRuntime runtime, IManagedUI ui);
+        void ShowModal(InstallerRuntime runtime, IManagedUI ui);
 
         /// <summary>
         /// Called when MSI execution is complete.
@@ -77,7 +77,7 @@ namespace WixSharp
         /// The runtime context.
         /// </value>
         ///
-        internal IRuntime MsiRuntime { get; set; }
+        internal InstallerRuntime MsiRuntime { get; set; }
 
         /// <summary>
         /// Gets or sets the UI.
@@ -216,7 +216,7 @@ namespace WixSharp
         /// </summary>
         /// <param name="runtime">The MSI runtime.</param>
         /// <param name="ui">The MSI external/embedded UI.</param>
-        public void ShowModal(IRuntime runtime, IManagedUI ui)
+        public void ShowModal(InstallerRuntime runtime, IManagedUI ui)
         {
             // Debug.Assert(false);
             Application.EnableVisualStyles();

@@ -9,6 +9,11 @@ namespace WixSharp
     public class MsiSessionAdapter : ISession
     {
         /// <summary>
+        /// The MSI session object.
+        /// </summary>
+        private readonly Session MsiSession;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="MsiSessionAdapter"/> class.
         /// </summary>
         /// <param name="session">The session.</param>
@@ -20,17 +25,17 @@ namespace WixSharp
         /// <summary>
         /// Gets or sets the string value of a named installer property.
         /// </summary>
-        /// <param name="property"></param>
-        public string this[string property]
+        /// <param name="name"></param>
+        public string this[string name]
         {
-            get { return MsiSession[property]; }
-            set { MsiSession[property] = value; }
+            get { return MsiSession[name]; }
+            set { MsiSession[name] = value; }
         }
 
         /// <summary>
-        /// The MSI session object.
+        /// The inner session object.
         /// </summary>
-        public Session MsiSession { get; }
+        public object InnerSession => MsiSession;
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.

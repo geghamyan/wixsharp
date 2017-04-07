@@ -72,10 +72,15 @@ namespace WixSharp.UI.Forms
         /// <value>
         /// The msi runtime.
         /// </value>
-        public MsiRuntime MsiRuntime
-        {
-            get { return (MsiRuntime)Shell?.RuntimeContext; }
-        }
+        public MsiRuntime MsiRuntime2 => (MsiRuntime)Shell.RuntimeContext;
+
+        /// <summary>
+        /// Gets the MSI runtime context.
+        /// </summary>
+        /// <value>
+        /// The msi runtime.
+        /// </value>
+        public InstallerRuntime MsiRuntime => (InstallerRuntime)Shell.RuntimeContext;
 
         /// <summary>
         /// Processes information and progress messages sent to the user interface.

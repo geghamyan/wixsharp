@@ -11,13 +11,13 @@ namespace WixSharp
         /// <summary>
         /// Gets or sets the string value of a named installer property.
         /// </summary>
-        /// <param name="property"></param>
-        string this[string property] { get; set; }
+        /// <param name="name"></param>
+        string this[string name] { get; set; }
 
         /// <summary>
-        /// The MSI session object.
+        /// The inner session object.
         /// </summary>
-        Session MsiSession { get; }
+        object InnerSession { get; }
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.

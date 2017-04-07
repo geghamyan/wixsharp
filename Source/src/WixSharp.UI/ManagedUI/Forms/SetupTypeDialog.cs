@@ -44,7 +44,7 @@ namespace WixSharp.UI.Forms
 
         void complete_Click(object sender, System.EventArgs e)
         {
-            string[] names = MsiRuntime.Session.MsiSession.Features.Select(x => x.Name).ToArray();
+            string[] names = MsiRuntime2.MsiSession.Features.Select(x => x.Name).ToArray();
             MsiRuntime.Session["ADDLOCAL"] = names.Join(",");
 
             int index = Shell.Dialogs.IndexOf(ProgressDialog);
