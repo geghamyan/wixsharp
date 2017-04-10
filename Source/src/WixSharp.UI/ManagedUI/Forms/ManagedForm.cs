@@ -21,7 +21,7 @@ namespace WixSharp.UI.Forms
     ///
     ///     void CustomDialog_Load(object sender, EventArgs e)
     ///     {
-    ///         banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
+    ///         banner.Image = Runtime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
     ///     }
     ///
     ///     void back_Click(object sender, EventArgs e)
@@ -72,15 +72,15 @@ namespace WixSharp.UI.Forms
         /// <value>
         /// The msi runtime.
         /// </value>
-        public MsiRuntime MsiRuntime2 => (MsiRuntime)Shell.RuntimeContext;
+        public MsiRuntime MsiRuntime => (MsiRuntime)Shell.RuntimeContext;
 
         /// <summary>
-        /// Gets the MSI runtime context.
+        /// Gets the installer runtime context.
         /// </summary>
         /// <value>
-        /// The msi runtime.
+        /// The installer runtime.
         /// </value>
-        public InstallerRuntime MsiRuntime => (InstallerRuntime)Shell.RuntimeContext;
+        public InstallerRuntime Runtime => (InstallerRuntime)Shell.RuntimeContext;
 
         /// <summary>
         /// Processes information and progress messages sent to the user interface.
@@ -140,7 +140,7 @@ namespace WixSharp.UI.Forms
         /// </summary>
         public void Localize()
         {
-            this.LocalizeWith(MsiRuntime.Localize);
+            this.LocalizeWith(Runtime.Localize);
         }
 
         /// <summary>

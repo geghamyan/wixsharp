@@ -68,7 +68,7 @@ namespace WixSharp
         /// <value>
         /// The runtime context.
         /// </value>
-        public object RuntimeContext { get { return MsiRuntime; } }
+        public object RuntimeContext { get { return Runtime; } }
 
         /// <summary>
         /// Gets or sets the runtime context object. Typically this object is of the <see cref="T:WixSharp.MsiRuntime" /> type.
@@ -77,7 +77,7 @@ namespace WixSharp
         /// The runtime context.
         /// </value>
         ///
-        internal InstallerRuntime MsiRuntime { get; set; }
+        internal InstallerRuntime Runtime { get; set; }
 
         /// <summary>
         /// Gets or sets the UI.
@@ -177,7 +177,7 @@ namespace WixSharp
 
                         var view = (Form)Activator.CreateInstance(viewType);
 
-                        view.LocalizeWith(MsiRuntime.Localize);
+                        view.LocalizeWith(Runtime.Localize);
                         view.FormBorderStyle = forms.FormBorderStyle.None;
                         shellView.ControlBox = view.ControlBox;
                         view.TopLevel = false;
@@ -201,7 +201,7 @@ namespace WixSharp
 
                         try
                         {
-                            MsiRuntime.Session["WIXSHARP_RUNTIME_DATA"] = MsiRuntime.Data.Serialize();
+                            Runtime.Session["WIXSHARP_RUNTIME_DATA"] = Runtime.Data.Serialize();
                         }
                         catch { /*expected to fail on deferred actions stage*/}
                     }
@@ -223,7 +223,7 @@ namespace WixSharp
             Application.SetCompatibleTextRenderingDefault(false);
 
             UI = ui;
-            MsiRuntime = runtime;
+            Runtime = runtime;
             Tasks.UILocalize = text => text.LocalizeWith(msiRuntime.Localize);
 
             UACRevealer.Enabled = !MsiRuntime.Session.Property("UAC_REVEALER_ENABLED").IsEmpty();
@@ -254,11 +254,11 @@ namespace WixSharp
                 {
                     shellView.Load += (s, e) =>
                     {
-                        MsiRuntime.Session["WIXSHARP_MANAGED_UI_HANDLE"] =
-                        MsiRuntime.Data["WIXSHARP_MANAGED_UI_HANDLE"] = shellView.Handle.ToString();
+                        Runtime.Session["WIXSHARP_MANAGED_UI_HANDLE"] =
+                        Runtime.Data["WIXSHARP_MANAGED_UI_HANDLE"] = shellView.Handle.ToString();
                         try
                         {
-                            var data = MsiRuntime.Session.GetResourceData("ui_shell_icon");
+                            var data = Runtime.Session.GetResourceData("ui_shell_icon");
                             using (var stream = new System.IO.MemoryStream(data))
                                 shellView.Icon = new Icon(stream);
                         }
@@ -297,7 +297,7 @@ namespace WixSharp
             }
             else
             {
-                MsiRuntime.Session.Log("UIInitialized returned " + result);
+                Runtime.Session.Log("UIInitialized returned " + result);
             }
         }
 
@@ -342,7 +342,7 @@ namespace WixSharp
             var resourcesMsi = BuildUiPlayerResources();
             var dummySession = Installer.OpenPackage(resourcesMsi, true);
 
-            MsiRuntime = new MsiRuntime(dummySession);
+            Runtime = new MsiRuntime(dummySession);
             Dialogs = dialogs;
 
             shellView = new ShellView();
@@ -451,7 +451,7 @@ namespace WixSharp
             if (!started)
                 Exit();
 
-            MsiRuntime.CancelExecute?.Invoke();
+            Runtime.CancelExecute?.Invoke();
         }
 
         /// <summary>
@@ -568,7 +568,7 @@ namespace WixSharp
         public void OnExecuteStarted()
         {
             //Debugger.Break();
-            MsiRuntime.FetchInstallDir(); //user may have updated it
+            Runtime.FetchInstallDir(); //user may have updated it
 
             if (CurrentDialog != null)
                 InUIThread(CurrentDialog.OnExecuteStarted);

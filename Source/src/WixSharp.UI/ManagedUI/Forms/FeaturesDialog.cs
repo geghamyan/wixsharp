@@ -34,7 +34,7 @@ namespace WixSharp.UI.Forms
         void FeaturesDialog_Load(object sender, System.EventArgs e)
         {
             //Debug.Assert(false);
-            string drawTextOnlyProp = MsiRuntime.Session.Property("WixSharpUI_TreeNode_TexOnlyDrawing");
+            string drawTextOnlyProp = Runtime.Session.Property("WixSharpUI_TreeNode_TexOnlyDrawing");
 
             bool drawTextOnly = true;
 
@@ -54,7 +54,7 @@ namespace WixSharp.UI.Forms
 
             ReadOnlyTreeNode.Behavior.AttachTo(featuresTree, drawTextOnly);
 
-            banner.Image = MsiRuntime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
+            banner.Image = Runtime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
             BuildFeaturesHierarchy();
 
             ResetLayout();
@@ -95,9 +95,9 @@ namespace WixSharp.UI.Forms
             //Cannot use MsiRuntime.Session.Features (FeatureInfo collection).
             //This WiX feature is just not implemented yet. All members except 'Name' throw InvalidHandeException
             //Thus instead of using FeatureInfo just collect the names and query database for the rest of the properties.
-            string[] names = MsiRuntime2.MsiSession.Features.Select(x => x.Name).ToArray();
+            string[] names = MsiRuntime.MsiSession.Features.Select(x => x.Name).ToArray();
 
-            features = names.Select(name => new FeatureItem(MsiRuntime2.MsiSession, name)).ToArray();
+            features = names.Select(name => new FeatureItem(MsiRuntime.MsiSession, name)).ToArray();
 
             //build the hierarchy tree
             var rootItems = features.Where(x => x.ParentName.IsEmpty())
@@ -175,10 +175,10 @@ namespace WixSharp.UI.Forms
                                            .Join(",");
 
             if (itemsToRemove.Any())
-                MsiRuntime.Session["REMOVE"] = itemsToRemove;
+                Runtime.Session["REMOVE"] = itemsToRemove;
 
             if (itemsToInstall.Any())
-                MsiRuntime.Session["ADDLOCAL"] = itemsToInstall;
+                Runtime.Session["ADDLOCAL"] = itemsToInstall;
 
             SaveUserSelection();
             Shell.GoNext();

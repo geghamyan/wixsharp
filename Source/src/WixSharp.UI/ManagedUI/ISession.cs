@@ -1,5 +1,4 @@
 using System.Drawing;
-using Microsoft.Deployment.WindowsInstaller;
 
 namespace WixSharp
 {
