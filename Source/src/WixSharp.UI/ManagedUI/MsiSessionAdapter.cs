@@ -33,9 +33,9 @@ namespace WixSharp
         }
 
         /// <summary>
-        /// The inner session object.
+        /// The session context object.
         /// </summary>
-        public object InnerSession => MsiSession;
+        public object SessionContext => MsiSession;
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.
@@ -53,31 +53,31 @@ namespace WixSharp
         /// <summary>
         /// Returns the resource bitmap.
         /// </summary>
-        /// <param name="binary">The name on resource.</param>
+        /// <param name="name">The name on resource.</param>
         /// <returns></returns>
-        public Bitmap GetResourceBitmap(string binary)
+        public Bitmap GetResourceBitmap(string name)
         {
-            return MsiSession.GetEmbeddedBitmap(binary);
+            return MsiSession.GetEmbeddedBitmap(name);
         }
 
         /// <summary>
         /// Returns the resource data.
         /// </summary>
-        /// <param name="binary">The name on resource in the Binary table.</param>
+        /// <param name="name">The name on resource in the Binary table.</param>
         /// <returns></returns>
-        public byte[] GetResourceData(string binary)
+        public byte[] GetResourceData(string name)
         {
-            return MsiSession.GetEmbeddedData(binary);
+            return MsiSession.GetEmbeddedData(name);
         }
 
         /// <summary>
         /// Returns the resource string.
         /// </summary>
-        /// <param name="binary">The name on resource.</param>
+        /// <param name="name">The name on resource.</param>
         /// <returns></returns>
-        public string GetResourceString(string binary)
+        public string GetResourceString(string name)
         {
-            return MsiSession.GetEmbeddedString(binary);
+            return MsiSession.GetEmbeddedString(name);
         }
 
         /// <summary>

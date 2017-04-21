@@ -14,9 +14,9 @@ namespace WixSharp
         string this[string name] { get; set; }
 
         /// <summary>
-        /// The inner session object.
+        /// The session context object.
         /// </summary>
-        object InnerSession { get; }
+        object SessionContext { get; }
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.
@@ -31,23 +31,23 @@ namespace WixSharp
         /// <summary>
         /// Returns the resource bitmap.
         /// </summary>
-        /// <param name="binary">The name on resource.</param>
+        /// <param name="name">The name on resource.</param>
         /// <returns></returns>
-        Bitmap GetResourceBitmap(string binary);
+        Bitmap GetResourceBitmap(string name);
 
         /// <summary>
         /// Returns the resource data.
         /// </summary>
-        /// <param name="binary">The name on resource in the Binary table.</param>
+        /// <param name="name">The name on resource.</param>
         /// <returns></returns>
-        byte[] GetResourceData(string binary);
+        byte[] GetResourceData(string name);
 
         /// <summary>
         /// Returns the resource string.
         /// </summary>
-        /// <param name="binary">The name on resource.</param>
+        /// <param name="name">The name on resource.</param>
         /// <returns></returns>
-        string GetResourceString(string binary);
+        string GetResourceString(string name);
 
         /// <summary>
         /// Gets the target system directory path based on specified directory name.

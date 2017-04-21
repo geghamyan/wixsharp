@@ -473,6 +473,7 @@ namespace WixSharp
 
                 this.progressCounter.ProcessMessage(messageType, messageRecord);
 
+                OnProgress((int)Math.Round(100 * this.progressCounter.Progress));
                 if (CurrentDialog != null)
                     InUIThread(() => CurrentDialog.OnProgress((int)Math.Round(100 * this.progressCounter.Progress)));
 
@@ -593,6 +594,16 @@ namespace WixSharp
                 shellView.Invoke(action);
             else
                 action();
+        }
+
+        /// <summary>
+        /// Called when MSI execution progress is changed.
+        /// </summary>
+        /// <param name="progressPercentage">The progress percentage.</param>
+        public void OnProgress(int progressPercentage)
+        {
+            if (CurrentDialog != null)
+                InUIThread(() => CurrentDialog.OnProgress(progressPercentage));
         }
     }
 }
