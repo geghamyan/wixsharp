@@ -64,6 +64,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ManagedUI\BASession.cs" />
     <Compile Include="..\WixSharp\Properties\AssemblyInfo.version.cs">
       <Link>Properties\AssemblyInfo.version.cs</Link>
     </Compile>

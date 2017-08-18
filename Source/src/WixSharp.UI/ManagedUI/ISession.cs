@@ -1,4 +1,5 @@
 using System.Drawing;
+using WixSharp.UI.Forms;
 
 namespace WixSharp
 {
@@ -17,6 +18,11 @@ namespace WixSharp
         /// The session context object.
         /// </summary>
         object SessionContext { get; }
+
+        /// <summary>
+        /// Returns a collection of FeatureItem
+        /// </summary>
+        FeatureItem[] Features { get; }
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.

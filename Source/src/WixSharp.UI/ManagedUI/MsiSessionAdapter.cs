@@ -1,5 +1,7 @@
 using System.Drawing;
+using System.Linq;
 using Microsoft.Deployment.WindowsInstaller;
+using WixSharp.UI.Forms;
 
 namespace WixSharp
 {
@@ -36,6 +38,22 @@ namespace WixSharp
         /// The session context object.
         /// </summary>
         public object SessionContext => MsiSession;
+
+        /// <summary>
+        /// Returns a collection of FeatureItem
+        /// </summary>
+        public FeatureItem[] Features
+        {
+            get
+            {
+                //Cannot use MsiRuntime.Session.Features (FeatureInfo collection).
+                //This WiX feature is just not implemented yet. All members except 'Name' throw InvalidHandeException
+                //Thus instead of using FeatureInfo just collect the names and query database for the rest of the properties.
+                string[] names = MsiSession.Features.Select(x => x.Name).ToArray();
+
+                return names.Select(name => new FeatureItem(MsiSession, name)).ToArray();
+            }
+        }
 
         /// <summary>
         /// Returns the value of the named property of the specified <see cref="T:Microsoft.Deployment.WindowsInstaller.Session"/> object.
