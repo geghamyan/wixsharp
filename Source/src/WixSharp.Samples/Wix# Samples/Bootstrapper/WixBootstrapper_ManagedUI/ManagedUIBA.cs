@@ -32,7 +32,7 @@ public class ManagedUIBA : BootstrapperApplication
     /// </summary>
     protected override void Run()
     {
-        //Debug.Assert(false);
+        Debug.Assert(false);
 
         try
         {
@@ -106,7 +106,7 @@ public class ManagedUIBA : BootstrapperApplication
 
         Engine.Quit(0);
     }
-#if dddd
+
     protected override void OnExecuteMsiMessage(ExecuteMsiMessageEventArgs args)
     {
         uiShell.ProcessMessage((Microsoft.Deployment.WindowsInstaller.InstallMessage)args.MessageType,
@@ -114,6 +114,7 @@ public class ManagedUIBA : BootstrapperApplication
             MessageButtons.OK, MessageIcon.None, MessageDefaultButton.Button1);
     }
 
+    /// <inheritdoc />
     protected override void OnProgress(ProgressEventArgs args)
     {
         int progressPercentage = args.ProgressPercentage != 0 ? args.ProgressPercentage : args.OverallPercentage;
@@ -124,5 +125,4 @@ public class ManagedUIBA : BootstrapperApplication
     {
         uiShell.OnExecuteComplete();
     }
-#endif
 }
