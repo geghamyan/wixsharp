@@ -2,7 +2,9 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Xml.Linq;
+using WixSharp.Bootstrapper;
 using WixSharp.CommonTasks;
 using Xunit;
 
@@ -10,6 +12,33 @@ namespace WixSharp.Test
 {
     public class IssueFixesTest
     {
+        /// <summary>
+        /// Fixes the issue 803.
+        /// </summary>
+        [Fact]
+        [Description("Issue #803")]
+        public void Fix_Issue_803()
+        {
+            // ensure all types that expose their properties for serialization with [XML] have these properties public
+            // "SqlDb" and "root" are serializable but not assignable by user
+            var classesWithFaultsFields =
+                    typeof(Project).Assembly.GetTypes()
+                        .SelectMany(t => t.GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                                          .Where(p => p.Name != "SqlDb")
+                                          .Where(p => p.GetCustomAttribute<WixSharp.XmlAttribute>() != null)
+                                          .Select(x => $"{x.DeclaringType.Name}.{x.Name}"))
+                .Concat(
+                    typeof(Project).Assembly.GetTypes()
+                        .Where(t => t != typeof(Error))
+                        .SelectMany(t => t.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                                          .Where(p => p.Name != "root")
+                                          .Where(p => p.GetCustomAttribute<WixSharp.XmlAttribute>() != null)
+                                          .Select(x => $"{x.DeclaringType.Name}.{x.Name}")))
+                .ToArray();
+
+            Assert.Empty(classesWithFaultsFields);
+        }
+
         [Fact]
         [Description("Issue #67")]
         public void Fix_Issue_67()
@@ -20,6 +49,18 @@ namespace WixSharp.Test
             project.LicenceFile = "license.rtf";
 
             var file = project.BuildWxs();
+        }
+
+        [Fact]
+        [Description("Issue #656: ExeFileShortcut changing folder name ")]
+        public void Fix_Issue_656()
+        {
+            // 'MySystem' should not be converted to 'MySystemFolder`
+            var raw_path = @"[INSTALL_DIR]\MySystem\MyProduct.exe";
+
+            var normalized_path = raw_path.NormalizeWixString();
+
+            Assert.Equal(raw_path, normalized_path);
         }
 
         [Fact]
@@ -125,14 +166,14 @@ namespace WixSharp.Test
         {
             var project = new Project("TestProject",
 
-                           new Dir(@"%ProgramFiles%\My Company\My Product",
-                               new File(@"Files\notepad.exe")),
+                          new Dir(@"%ProgramFiles%\My Company\My Product",
+                              new File(@"Files\notepad.exe")),
 
-                           new Dir(@"%CommonAppDataFolder%\Test Project",
-                               new File(@"Files\TextFile.txt")),
+                          new Dir(@"%CommonAppDataFolder%\Test Project",
+                              new File(@"Files\TextFile.txt")),
 
-                           new Dir(@"%PersonalFolder%\Test Project",
-                               new File(@"Files\Baskets.bbd")));
+                          new Dir(@"%PersonalFolder%\Test Project",
+                              new File(@"Files\Baskets.bbd")));
 
             string wxs = project.BuildWxs();
 
@@ -145,14 +186,14 @@ namespace WixSharp.Test
         {
             var project = new Project("TestProject",
 
-                           new Dir(@"%ProgramFiles%\My Company\My Product",
-                               new File(@"Files\notepad.exe")),
+                          new Dir(@"%ProgramFiles%\My Company\My Product",
+                              new File(@"Files\notepad.exe")),
 
-                           new Dir(@"%CommonAppDataFolder%\Test Project",
-                               new File(@"Files\TextFile.txt")),
+                          new Dir(@"%CommonAppDataFolder%\Test Project",
+                              new File(@"Files\TextFile.txt")),
 
-                           new Dir(@"%PersonalFolder%\Test Project",
-                               new File(@"Files\Baskets.bbd")));
+                          new Dir(@"%PersonalFolder%\Test Project",
+                              new File(@"Files\Baskets.bbd")));
 
             project.WixSourceGenerated += xml =>
             {
@@ -174,14 +215,14 @@ namespace WixSharp.Test
         {
             var project = new Project("TestProject",
 
-                           new Dir(@"%ProgramFiles%\My Company\My Product",
-                               new File(@"Files\notepad.exe")),
+                          new Dir(@"%ProgramFiles%\My Company\My Product",
+                              new File(@"Files\notepad.exe")),
 
-                           new Dir(@"%CommonAppDataFolder%\Test Project",
-                               new File(@"Files\TextFile.txt")),
+                          new Dir(@"%CommonAppDataFolder%\Test Project",
+                              new File(@"Files\TextFile.txt")),
 
-                           new Dir(@"%PersonalFolder%\Test Project",
-                               new File(@"Files\Baskets.bbd")));
+                          new Dir(@"%PersonalFolder%\Test Project",
+                              new File(@"Files\Baskets.bbd")));
 
             project.WixSourceGenerated += Project_WixSourceGenerated;
             string wxs = project.BuildWxs();
@@ -207,8 +248,8 @@ namespace WixSharp.Test
             Project project = new Project("MyProduct",
                 new Dir(@"%ProgramFiles%\My Company\My Product",
                     new File(this.GetType().Assembly.Location)
-                )
-            );
+                       )
+                                         );
 
             project.GUID = new Guid("6f330b47-2577-43ad-9095-1861ba25889b");
             project.Version = new Version("2014.1.26.0");
@@ -239,9 +280,9 @@ namespace WixSharp.Test
                         new File(docs_01, @"Files\Docs\Manual_01.txt"),
                         new File(docs_02, @"Files\Docs\Manual_02.txt"),
                         new File(docs_03, @"Files\Docs\Manual_03.txt")
-                    )
-                )
-            );
+                           )
+                       )
+                                         );
 
             project.GUID = new Guid("6f330b47-2577-43ad-9095-1861ba25889b");
 
@@ -256,22 +297,22 @@ namespace WixSharp.Test
 
             var docsFeature = rootFeature.Elements()
                                          .FirstOrDefault(e => e.HasLocalName("Feature")
-                                                           && e.HasAttribute("Title", value => value == "MyApp Documentation"));
+                                                         && e.HasAttribute("Title", value => value == "MyApp Documentation"));
             Assert.NotNull(docsFeature);
 
             var doc1Feature = docsFeature.Elements()
                                          .FirstOrDefault(e => e.HasLocalName("Feature")
-                                                           && e.HasAttribute("Title", value => value == "Documentation 01"));
+                                                         && e.HasAttribute("Title", value => value == "Documentation 01"));
             Assert.NotNull(doc1Feature);
 
             var doc2Feature = docsFeature.Elements()
                                          .FirstOrDefault(e => e.HasLocalName("Feature")
-                                                           && e.HasAttribute("Title", value => value == "Documentation 02"));
+                                                         && e.HasAttribute("Title", value => value == "Documentation 02"));
             Assert.NotNull(doc2Feature);
 
             var doc3Feature = docsFeature.Elements()
                                          .FirstOrDefault(e => e.HasLocalName("Feature")
-                                                           && e.HasAttribute("Title", value => value == "Documentation 03"));
+                                                         && e.HasAttribute("Title", value => value == "Documentation 03"));
             Assert.NotNull(doc3Feature);
         }
 

@@ -79,7 +79,7 @@ namespace WixSharp
             }
         }
 
-        Dictionary<string, string> attributes = new Dictionary<string, string>();
+        private Dictionary<string, string> attributes = new Dictionary<string, string>();
 
         /// <summary>
         /// Optional attributes of the <c>WiX Element</c> (e.g. Secure:YesNoPath) expressed as a string KeyValue pairs (e.g. "StartOnInstall=Yes; Sequence=1").
@@ -106,7 +106,7 @@ namespace WixSharp
 
         internal Dictionary<string, string> attributesBag = new Dictionary<string, string>();
 
-        void ProcessAttributesDefinition()
+        private void ProcessAttributesDefinition()
         {
             if (!AttributesDefinition.IsEmpty())
             {
@@ -132,10 +132,10 @@ namespace WixSharp
             var preffix = name + "=";
 
             return (AttributesDefinition ?? "").Trim()
-                                             .Split(";".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
-                                             .Where(x => x.StartsWith(preffix))
-                                             .Select(x => x.Substring(preffix.Length))
-                                             .FirstOrDefault();
+                                               .Split(";".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
+                                               .Where(x => x.StartsWith(preffix))
+                                               .Select(x => x.Substring(preffix.Length))
+                                               .FirstOrDefault();
         }
 
         internal void SetAttributeDefinition(string name, string value, bool append = false)
@@ -186,7 +186,7 @@ namespace WixSharp
             internal get { return feature; }
         }
 
-        Feature feature;
+        private Feature feature;
 
         /// <summary>
         /// The collection of <see cref="Feature"></see>s the Wix object belongs to. This member is processed only for the
@@ -297,6 +297,33 @@ namespace WixSharp
                 return null;
         }
 
+        /// <summary>
+        /// Gets or sets the id of the Component element that is to contain XML equivalent of the <see cref="WixEntity"/>.
+        /// </summary>
+        /// <value>
+        /// The component identifier.
+        /// </value>
+        public string ComponentId
+        {
+            get => GetAttributeDefinition("Component:Id");
+            set => SetAttributeDefinition("Component:Id", value);
+        }
+
+        /// <summary>
+        /// Gets or sets the Condition attribute of the Component element that is to contain XML equivalent of the
+        /// <see cref="WixEntity"/>.
+        /// <para>Note, some WiW elements may not be contained by Component elements (e.g. 'CloseApplication').
+        /// Thus attempt to set parent component Condition attribute will always fail.</para>
+        /// </summary>
+        /// <value>
+        /// The component condition.
+        /// </value>
+        public string ComponentCondition
+        {
+            get => GetAttributeDefinition("Component:Condition");
+            set => SetAttributeDefinition("Component:Condition", value);
+        }
+
         internal void AddInclude(string xmlFile, string parentElement)
         {
             SetAttributeDefinition("WixSharpCustomAttributes:xml_include", parentElement + "|" + xmlFile, append: true);
@@ -317,7 +344,7 @@ namespace WixSharp
         ///  Note: The ID auto-generation is triggered on the first access (evaluation) and in order to make the id
         ///  allocation deterministic the compiler resets ID generator just before the build starts. However if you
         ///  accessing any auto-id before the Build*() is called you can it interferes with the ID auto generation and eventually
-        ///  lead to the WiX ID duplications. To prevent this from happening either:"
+        ///  lead to the WiX ID duplications. To prevent this from happening either:
         ///  <para> - Avoid evaluating the auto-generated IDs values before the call to Build*()</para>
         ///  <para> - Set the IDs (to be evaluated) explicitly</para>
         ///  <para> - Prevent resetting auto-ID generator by setting WixEntity.DoNotResetIdGenerator to true";</para>
@@ -358,71 +385,74 @@ namespace WixSharp
         /// <returns></returns>
         public static string IncrementalIdFor(WixEntity entity)
         {
-            if (!idMaps.ContainsKey(entity.GetType()))
-                idMaps[entity.GetType()] = new Dictionary<string, int>();
-
-            var rawName = entity.Name.Expand();
-            if (rawName.IsEmpty())
-                rawName = entity.GetType().Name;
-
-            if (IO.Path.IsPathRooted(entity.Name))
-                rawName = IO.Path.GetFileName(entity.Name).Expand();
-
-            if (entity.GetType() != typeof(Dir) && entity.GetType().BaseType != typeof(Dir) && entity.Name.IsNotEmpty())
-                rawName = IO.Path.GetFileName(entity.Name).Expand();
-
-            //Maximum allowed length for a stream name is 62 characters long; In some cases more but to play it safe keep 62 limit
-            //
-            //Note: the total limit 62 needs to include in some cases MSI auto prefix (e.g. table name) ~15 chars
-            // our hash code (max 10 chars) and our decoration (separators). So 30 seems to be a safe call
-            //
-            int maxLength = 30;
-            if (rawName.Length > maxLength)
+            lock (idMaps)
             {
-                //some chars are illegal as star if the ID so work around this with '_' prefix
-                rawName = "_..." + rawName.Substring(rawName.Length - maxLength);
+                if (!idMaps.ContainsKey(entity.GetType()))
+                    idMaps[entity.GetType()] = new Dictionary<string, int>();
+
+                var rawName = entity.Name.Expand();
+                if (rawName.IsEmpty())
+                    rawName = entity.GetType().Name;
+
+                if (IO.Path.IsPathRooted(entity.Name))
+                    rawName = IO.Path.GetFileName(entity.Name).Expand();
+
+                if (entity.GetType() != typeof(Dir) && entity.GetType().BaseType != typeof(Dir) && entity.Name.IsNotEmpty())
+                    rawName = IO.Path.GetFileName(entity.Name).Expand();
+
+                //Maximum allowed length for a stream name is 62 characters long; In some cases more but to play it safe keep 62 limit
+                //
+                //Note: the total limit 62 needs to include in some cases MSI auto prefix (e.g. table name) ~15 chars
+                // our hash code (max 10 chars) and our decoration (separators). So 30 seems to be a safe call
+                //
+                int maxLength = 30;
+                if (rawName.Length > maxLength)
+                {
+                    //some chars are illegal as star if the ID so work around this with '_' prefix
+                    rawName = "_..." + rawName.Substring(rawName.Length - maxLength);
+                }
+
+                string rawNameKey = rawName.ToLower();
+
+                /*
+                 "bin\Release\similarFiles.txt" and "bin\similarfiles.txt" will produce the following IDs
+                 "Component.similarFiles.txt" and "Component.similariles.txt", which will be treated by Wix compiler as duplication
+                 */
+
+                if (!idMaps[entity.GetType()].ContainsSimilarKey(rawName)) //this Type has not been generated yet
+                {
+                    idMaps[entity.GetType()][rawNameKey] = 0;
+                    entity.id = rawName;
+                    if (char.IsDigit(entity.id.Last()))
+                        entity.id += "_"; // work around for https://wixsharp.codeplex.com/workitem/142
+                                          // to avoid potential collision between ids that end with digit
+                                          // and auto indexed (e.g. [rawName + "." + index])
+                }
+                else
+                {
+                    //The Id has been already generated for this Type with this rawName
+                    //so just increase the index
+                    var index = idMaps[entity.GetType()][rawNameKey] + 1;
+
+                    entity.id = rawName + "." + index;
+                    idMaps[entity.GetType()][rawNameKey] = index;
+                }
+
+                //Trace.WriteLine(">>> " + GetType() + " >>> " + id);
+
+                if (rawName.IsNotEmpty() && char.IsDigit(rawName[0]))
+                    entity.id = "_" + entity.id;
+
+                while (alreadyTakenIds.Contains(entity.id)) //last line of defense against duplication
+                    entity.id += "_";
+
+                alreadyTakenIds.Add(entity.id);
+
+                return entity.id;
             }
-
-            string rawNameKey = rawName.ToLower();
-
-            /*
-             "bin\Release\similarFiles.txt" and "bin\similarfiles.txt" will produce the following IDs
-             "Component.similarFiles.txt" and "Component.similariles.txt", which will be treated by Wix compiler as duplication
-             */
-
-            if (!idMaps[entity.GetType()].ContainsSimilarKey(rawName)) //this Type has not been generated yet
-            {
-                idMaps[entity.GetType()][rawNameKey] = 0;
-                entity.id = rawName;
-                if (char.IsDigit(entity.id.Last()))
-                    entity.id += "_"; // work around for https://wixsharp.codeplex.com/workitem/142
-                                      // to avoid potential collision between ids that end with digit
-                                      // and auto indexed (e.g. [rawName + "." + index])
-            }
-            else
-            {
-                //The Id has been already generated for this Type with this rawName
-                //so just increase the index
-                var index = idMaps[entity.GetType()][rawNameKey] + 1;
-
-                entity.id = rawName + "." + index;
-                idMaps[entity.GetType()][rawNameKey] = index;
-            }
-
-            //Trace.WriteLine(">>> " + GetType() + " >>> " + id);
-
-            if (rawName.IsNotEmpty() && char.IsDigit(rawName[0]))
-                entity.id = "_" + entity.id;
-
-            while (alreadyTakenIds.Contains(entity.id)) //last line of defence against duplication
-                entity.id += "_";
-
-            alreadyTakenIds.Add(entity.id);
-
-            return entity.id;
         }
 
-        static List<string> alreadyTakenIds = new List<string>();
+        private static List<string> alreadyTakenIds = new List<string>();
 
         internal bool isAutoId = true;
 
@@ -438,7 +468,7 @@ namespace WixSharp
         /// </summary>
         static public bool DoNotResetIdGenerator = false;
 
-        static Dictionary<Type, Dictionary<string, int>> idMaps = new Dictionary<Type, Dictionary<string, int>>();
+        private static Dictionary<Type, Dictionary<string, int>> idMaps = new Dictionary<Type, Dictionary<string, int>>();
 
         /// <summary>
         /// Resets the <see cref="Id"/> generator. This method is exercised by the Wix# compiler before any
@@ -455,15 +485,22 @@ namespace WixSharp
         {
             if (!DoNotResetIdGenerator)
             {
-                if (idMaps.Count > 0 && !supressWarning)
+                // ServiceInstaller and SvcEvent are the only types that are expected to be allocated before
+                // the BuildMsi calls. This is because they are triggered on setting `ServiceInstaller.StartOn`
+                // and other similar service actions.
+                bool anyAlreadyAllocatedIds = idMaps.Keys.Any(x => x != typeof(ServiceInstaller) && x != typeof(SvcEvent));
+
+                if (anyAlreadyAllocatedIds && !supressWarning)
                 {
-                    Compiler.OutputWriteLine("----------------------------");
-                    Compiler.OutputWriteLine("Warning: Wix# compiler detected that some IDs has been auto-generated before the build started. " +
-                                             "This can lead to the WiX ID duplications. To prevent this from happening either:\n" +
-                                             "   - Avoid evaluating the auto-generated IDs values before the call to Build*\n" +
-                                             "   - Set the IDs (to be evaluated) explicitly\n" +
-                                             "   - Prevent resetting auto-ID generator by setting WixEntity.DoNotResetIdGenerator to true");
-                    Compiler.OutputWriteLine("----------------------------");
+                    var message = "----------------------------\n" +
+                    "Warning: Wix# compiler detected that some IDs has been auto-generated before the build started. " +
+                    "This can lead to the WiX ID duplications on consecutive 'Build*' calls.\n" +
+                    "To prevent this from happening either:\n" +
+                    "   - Avoid evaluating the auto-generated IDs values before the call to Build*\n" +
+                    "   - Set the IDs (to be evaluated) explicitly\n" +
+                    "   - Prevent resetting auto-ID generator by setting WixEntity.DoNotResetIdGenerator to true\n" +
+                    "----------------------------";
+                    Compiler.OutputWriteLine(message);
                 }
                 ResetIdGenerator();
             }

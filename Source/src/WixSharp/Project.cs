@@ -63,30 +63,33 @@ namespace WixSharp
     /// project.BuildMsi();
     /// </code>
     /// </example>
-    public partial class Project : WixProject
+    public class Project : WixProject
     {
-        internal string ComponentId(string seed)
+        internal new string ComponentId(string seed)
         {
-            // Component id must be globally unique. Otherwise other products can 
-            // accidentally trigger MSI ref-counting by installing more than one product 
+            // Component id must be globally unique. Otherwise other products can
+            // accidentally trigger MSI ref-counting by installing more than one product
             // with the same component id.
-            // The problem is caused by the mind bending MSi concept that a identity does 
-            // not logically belong to the product but to the target system. Thus if two 
-            // different products happens too have the component with the same id MSI will 
+            //
+            // The problem is caused by the mind bending MSi concept that a identity does
+            // not logically belong to the product but to the target system. Thus if two
+            // different products happens too have the component with the same id MSI will
             // treat the components as the same component.
-            // Using GUID seems to be a good technique to overcome this limitation but the 
-            // the wast majority of the samples (e.g. WiX) use human readable ids, which are 
+            // Using GUID seems to be a good technique to overcome this limitation but the
+            // the vast majority of the samples (e.g. WiX) use human readable ids, which are
             // of course not unique.
+            //
             // The excellent reading on the topic can be found here:
             // http://geekswithblogs.net/akraus1/archive/2011/06/17/145898.aspx
             // Ideally we would want to keep readability and uniqueness. Thus the solution
             // is to merge "human readable" id with the project guid.
 
             if (Compiler.AutoGeneration.ForceComponentIdUniqueness)
-                return $"{seed}.{this.GUID.ToString().Replace("-", "")}";
+                return $"{seed}.{this.UpgradeCode.ToString().Replace("-", "")}";
             else
                 return seed;
         }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Project"/> class.
         /// </summary>
@@ -115,7 +118,6 @@ namespace WixSharp
             var props = new List<Property>();
             var bins = new List<Binary>();
             var genericItems = new List<IGenericEntity>();
-            var urlreservation = new List<UrlReservation>();
 
             if (items.OfType<Media>().Any())
                 this.Media.Clear();
@@ -138,8 +140,8 @@ namespace WixSharp
                         actions.Add(item as Action);
                     else if (item is RegValue)
                         regs.Add(item as RegValue);
-                    else if (item is UrlReservation)
-                        urlreservation.Add(item as UrlReservation);
+                    else if (item is RegKey regkey)
+                        regs.AddRange(regkey.GetValues());
                     else if (item is RegFile)
                     {
                         var file = item as RegFile;
@@ -172,7 +174,6 @@ namespace WixSharp
             RegValues = regs.ToArray();
             Properties = props.ToArray();
             Binaries = bins.ToArray();
-            UrlReservations = urlreservation.ToArray();
             GenericItems = genericItems.ToArray();
         }
 
@@ -212,12 +213,17 @@ namespace WixSharp
                 foreach (Shortcut s in this.AllFiles.SelectMany(f => f.Shortcuts))
                 {
                     s.Location = s.Location.Map64Dirs();
-                };
+                }
 
                 foreach (var action in this.Actions.OfType<PathFileAction>())
                 {
                     action.AppPath = action.AppPath.Map64Dirs();
-                };
+                }
+            }
+
+            foreach (File f in this.AllFiles.Where(f => f.AddCloseAction == true))
+            {
+                this.AddGenericItem(new CloseApplication(f.Name.PathGetFileName(), true, false));
             }
         }
 
@@ -270,6 +276,16 @@ namespace WixSharp
         public List<Media> Media = new List<Media>(new[] { new Media() });
 
         /// <summary>
+        /// The REINSTALLMODE property is a string that contains letters specifying the type of reinstall to perform.
+        /// Options are case-insensitive and order-independent. This property should normally always be used in
+        /// conjunction with the REINSTALL property.
+        /// <para>Note, REINSTALLMODE property will be created only in the automatically produced WiX definition file
+        /// only if <see cref="WixSharp.Project.MajorUpgrade"/> is set.</para>
+        /// <para>Read more: https://docs.microsoft.com/en-us/windows/desktop/msi/reinstallmode </para>
+        /// </summary>
+        public string ReinstallMode = "omus";
+
+        /// <summary>
         /// Relative path to RTF file with the custom licence agreement to be displayed in the Licence dialog.
         /// If this value is not specified the default WiX licence agreement will be used.
         /// </summary>
@@ -315,7 +331,7 @@ namespace WixSharp
         /// </summary>
         public Guid? UpgradeCode;
 
-        Guid? guid;
+        private Guid? guid;
 
         /// <summary>
         /// This value uniquely identifies the software product being installed.
@@ -370,7 +386,7 @@ namespace WixSharp
         public ScheduleReboot ScheduleReboot;
 
         /// <summary>
-        /// Provideds fine control over rebooting at the end of installation.
+        /// Provides fine control over rebooting at the end of installation.
         /// <para>If set it creates <c>ForceReboot</c> element in the <c>InstallExecuteSequence</c>.</para>
         /// </summary>
         /// <example>
@@ -548,6 +564,8 @@ namespace WixSharp
         /// </summary>
         public bool EmitConsistentPackageId = false;
 
+        internal bool SuppressSettingPackageLanguages = false;
+
         /// <summary>
         /// Collection of WiX/MSI <see cref="Binary"/> objects to be embedded into MSI database.
         /// Normally you doe not need to deal with this property as <see cref="Compiler"/> will populate
@@ -598,7 +616,7 @@ namespace WixSharp
             get { return _defaultFeature; }
             set
             {
-                if (value == null) throw new ArgumentNullException("value", "DefaultFeature cannot be null");
+                if (value == null) throw new ArgumentNullException(nameof(value), "DefaultFeature cannot be null");
                 _defaultFeature = value;
             }
         }
@@ -705,13 +723,18 @@ namespace WixSharp
 
             if (ignoreEmptyDirectories)
             {
-                var emptyDirs = AllDirs.Where(d => !d.Files.Any() && !d.Dirs.Any());
+                IEnumerable<Dir> getEmptyDirs() => AllDirs.Where(d => !d.Files.Any() && !d.Dirs.Any());
 
-                emptyDirs.ForEach(emptyDir => AllDirs.ForEach(d =>
-                                              {
-                                                  if (d.Dirs.Contains(emptyDir))
-                                                      d.Dirs = d.Dirs.Where(x => x != emptyDir).ToArray();
-                                              }));
+                IEnumerable<Dir> emptyDirs;
+
+                while ((emptyDirs = getEmptyDirs()).Any())
+                {
+                    emptyDirs.ForEach(emptyDir => AllDirs.ForEach(d =>
+                                                  {
+                                                      if (d.Dirs.Contains(emptyDir))
+                                                          d.Dirs = d.Dirs.Where(x => x != emptyDir).ToArray();
+                                                  }));
+                }
             }
 
             return this;
@@ -801,7 +824,7 @@ namespace WixSharp
                 path.Insert(0, dir.Name);
                 dir = this.AllDirs.FirstOrDefault(d => d.Dirs.Contains(dir));
             }
-            return path.Join("\\");
+            return path.JoinBy("\\");
         }
 
         /// <summary>
@@ -817,7 +840,7 @@ namespace WixSharp
                 var hash = target_path.GetHashCode32();
 
                 // WiX does not allow '-' char in ID. So need to use `Math.Abs`
-                return $"{target_path.PathGetFileName()}_{Math.Abs(hash)}";
+                return $"{target_path.PathGetFileName()}_{(uint) hash}";
             }
             return null; // next two lines produce the same result
                          // return WixEntity.DefaultIdAlgorithm(entity);
@@ -871,7 +894,7 @@ namespace WixSharp
         /// </summary>
         public int InstallerVersion = 200;
 
-        string codepage = "";
+        private string codepage = "";
 
         /// <summary>
         /// Installation UI Code Page. If not specified
@@ -884,7 +907,7 @@ namespace WixSharp
                 if (!codepage.IsEmpty())
                     return codepage;
                 else
-                    return Encoding.GetEncoding(new CultureInfo(Language.Split(',', ';').FirstOrDefault()).TextInfo.ANSICodePage).WebName;
+                    return Encoding.GetEncoding(this.DefaultLanguage.TextInfo.ANSICodePage).WebName;
             }
             set
             {
@@ -944,9 +967,6 @@ namespace WixSharp
         /// <returns>Path to the built MSI file.</returns>
         public string BuildMsi(string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildMsi(this);
             else
@@ -961,9 +981,6 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         public string BuildMsiCmd(string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildMsiCmd(this);
             else
@@ -978,9 +995,6 @@ namespace WixSharp
         /// <returns>Path to the built WXS file.</returns>
         public string BuildWxs(Compiler.OutputType type = Compiler.OutputType.MSI, string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildWxs(this, type);
             else
@@ -994,9 +1008,6 @@ namespace WixSharp
         /// <returns>Path to the built MSM file.</returns>
         public string BuildMsm(string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildMsm(this);
             else
@@ -1011,9 +1022,6 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         public string BuildMsmCmd(string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildMsmCmd(this);
             else
@@ -1037,7 +1045,7 @@ namespace WixSharp
             {
                 var target_path = this.GetTargetPathOf(file);
 
-                var dir_hash = Math.Abs(target_path.GetHashCode32());
+                var dir_hash = (uint) target_path.GetHashCode32();
                 var file_name = target_path.PathGetFileName().EscapeIllegalCharacters();
 
                 if (Compiler.AutoGeneration.HashedTargetPathIdAlgorithm_FileIdMask != null)

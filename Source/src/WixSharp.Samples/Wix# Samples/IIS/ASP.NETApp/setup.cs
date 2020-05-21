@@ -3,15 +3,15 @@
 //css_ref Wix_bin\SDK\Microsoft.Deployment.WindowsInstaller.dll;
 //css_ref System.Core.dll;
 using System;
+using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
-using System.Linq;
 using WixSharp;
 using WixSharp.CommonTasks;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var myWebSite = new WebSite("My Web Site", "*:81")
         {
@@ -19,11 +19,14 @@ class Script
             InstallWebSite = true
         };
 
+        // if you wan to create an IIS Website without using IISVirtualDir then you can use IISWebSite class instead.
+
         var project =
                 new Project("My Product",
                     new Dir(@"%ProgramFiles%\MyCompany",
                         new Dir("MyWebApp",
                             new Dir("AdminWeb2",
+                                    new IISWebSite("MyWebAppDefault", "8088"),
                                     new IISVirtualDir
                                     {
                                         Name = "MyWebApp2",
@@ -42,22 +45,22 @@ class Script
                                             WebSite = new WebSite("NewSite3", "*:8083") { InstallWebSite = true },
                                             WebAppPool = new WebAppPool("MyWebApp3", "Identity=applicationPoolIdentity")
                                         }
-                                    )
-                                ),
+                                            )
+                                       ),
                             new File(@"MyWebApp\Default.aspx",
-                                 new IISVirtualDir
-                                 {
-                                     Alias = "MyWebApp",
-                                     AppName = "Test",
-                                     WebSite = myWebSite
-                                 },
-                                 new IISVirtualDir
-                                 {
-                                     Alias = "MyWebApp1",
-                                     AppName = "Test1",
-                                     WebSite = myWebSite
-                                 }
-                                ),
+                                new IISVirtualDir
+                                {
+                                    Alias = "MyWebApp",
+                                    AppName = "Test",
+                                    WebSite = myWebSite
+                                },
+                                new IISVirtualDir
+                                {
+                                    Alias = "MyWebApp1",
+                                    AppName = "Test1",
+                                    WebSite = myWebSite
+                                }
+                                    ),
                             new File(@"MyWebApp\Default.aspx.cs"),
                             new File(@"MyWebApp\Default.aspx.designer.cs"),
                             new File(@"MyWebApp\Web.config"))));
@@ -67,8 +70,8 @@ class Script
         project.OutFileName = "setup";
 
         project.PreserveTempFiles = true;
-        //uncomment the line below if you want to associate the web site with the app pool via WebApplicaion element
-        //project.WixSourceGenerated += Project_WixSourceGenerated;
+        // uncomment the line below if you want to associate the web site with the app pool via WebApplicaion element
+        // project.WixSourceGenerated += Project_WixSourceGenerated;
         project.BuildMsi();
     }
 

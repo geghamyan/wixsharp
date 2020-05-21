@@ -1,7 +1,12 @@
 using System;
 using System.IO;
 
+#if WIXSHARP_MSI
+
+namespace WixSharp.Msi
+#else
 namespace WixSharp
+#endif
 {
     /// <summary>
     /// Collection of generic WixSharp extension methods
@@ -49,7 +54,8 @@ namespace WixSharp
         {
             switch (path)
             {
-                case "AdminToolsFolder": return Environment.SpecialFolder.CommonApplicationData.ToPath().PathJoin(@"Start Menu\Programs\Administrative Tools");
+                case "AdminToolsFolder":
+                    return Environment.SpecialFolder.ApplicationData.ToPath().PathJoin(@"Microsoft\Windows\Start Menu\Programs\Administrative Tools");
 
                 case "AppDataFolder": return Environment.SpecialFolder.ApplicationData.ToPath();
                 case "CommonAppDataFolder": return Environment.SpecialFolder.CommonApplicationData.ToPath();

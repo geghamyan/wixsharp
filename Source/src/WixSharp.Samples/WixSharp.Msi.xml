@@ -4,25 +4,25 @@
         <name>WixSharp.Msi</name>
     </assembly>
     <members>
-        <member name="T:WixSharp.Extensions">
+        <member name="T:WixSharp.Msi.Extensions">
             <summary>
             Collection of generic WixSharp extension methods
             </summary>
         </member>
-        <member name="M:WixSharp.Extensions.Is64OS">
+        <member name="M:WixSharp.Msi.Extensions.Is64OS">
             <summary>
             Returns <c>true</c> if the OS (this routine is executed on) has an x64 CPU architecture.
             </summary>
             <returns></returns>
         </member>
-        <member name="M:WixSharp.Extensions.ToPath(System.Environment.SpecialFolder)">
+        <member name="M:WixSharp.Msi.Extensions.ToPath(System.Environment.SpecialFolder)">
             <summary>
             Returns full path of the <see cref="T:System.Environment.SpecialFolder"/>
             </summary>
             <param name="folder"></param>
             <returns></returns>
         </member>
-        <member name="M:WixSharp.Extensions.AsWixVarToPath(System.String)">
+        <member name="M:WixSharp.Msi.Extensions.AsWixVarToPath(System.String)">
              <summary>
              'Interprets' a string as a WiX constant and expands into a proper File System path. For example "DesktopFolder"
              will be expanded into "[SysDrive]:\Users\[user]\Desktop". This method is a logical equivalent of C# Environment.GetFolderPath.
@@ -36,7 +36,7 @@
              <param name="path">The path.</param>
              <returns></returns>
         </member>
-        <member name="M:WixSharp.Extensions.PathJoin(System.String,System.String[])">
+        <member name="M:WixSharp.Msi.Extensions.PathJoin(System.String,System.String[])">
             <summary>
             Equivalent of <see cref="M:System.IO.Path.Combine(System.String,System.String)"/>.
             </summary>
@@ -44,16 +44,38 @@
             <param name="items"></param>
             <returns></returns>
         </member>
-        <member name="M:WixSharp.Extensions.PathGetDirName(System.String)">
+        <member name="M:WixSharp.Msi.Extensions.PathGetDirName(System.String)">
             <summary>
             Identical to <see cref="M:System.IO.Path.GetDirectoryName(System.String)"/>. It is useful for Wix# consuming code as it allows avoiding
             "using System.IO;" directive, which interferes with Wix# types.
             </summary>
             <param name="path">The path.</param>
         </member>
+        <member name="T:WixSharp.Msi.EmbedTransform">
+             <summary>
+            
+             </summary>
+        </member>
+        <member name="M:WixSharp.Msi.EmbedTransform.Do(System.String,System.String)">
+            <summary>
+            Embeds a language transformation (mst file) in the specified msi file.
+            </summary>
+            <param name="msi">The MSI file.</param>
+            <param name="mst">The MST file.</param>
+        </member>
         <member name="T:WixSharp.UI.MsiParser">
             <summary>
-            Utility class for simplifying MSI interpreting tasks DB querying, message data parsing  
+            Utility class for simplifying MSI interpreting tasks DB querying, message data parsing
+            </summary>
+        </member>
+        <member name="F:WixSharp.UI.MsiParser.msiFile">
+            <summary>
+            The msi file
+            </summary>
+        </member>
+        <member name="F:WixSharp.UI.MsiParser.db">
+            <summary>
+            The msi file database handle.
             </summary>
         </member>
         <member name="M:WixSharp.UI.MsiParser.Open(System.String)">
@@ -96,6 +118,13 @@
             </para>
             </summary>
             <returns>Product version.</returns>
+        </member>
+        <member name="M:WixSharp.UI.MsiParser.GetProperty(System.String)">
+            <summary>
+            Gets the property value.
+            </summary>
+            <param name="name">The name.</param>
+            <returns></returns>
         </member>
         <member name="M:WixSharp.UI.MsiParser.GetProductCode">
             <summary>
@@ -458,6 +487,57 @@
             <value>
               <c>true</c> if the log file created; otherwise, <c>false</c>.
             </value>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Codepage">
+            <summary>Codepage</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Title">
+            <summary>Title</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Subject">
+            <summary>Subject</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Author">
+            <summary>Author</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Keywords">
+            <summary>Keywords</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Comments">
+            <summary>Comments</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Template">
+            <summary>Template</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.LastSavedBy">
+            <summary>LastSavedBy</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.RevisionNumber">
+            <summary>RevisionNumber</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.LastPrinted">
+            <summary>LastPrinted</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.CreateTime">
+            <summary>CreateTime</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.LastSaveTime">
+            <summary>LastSaveTime</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.PageCount">
+            <summary>PageCount</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.WordCount">
+            <summary>WordCount</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.CharacterCount">
+            <summary>CharacterCount</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.CreatingApplication">
+            <summary>CreatingApplication</summary>
+        </member>
+        <member name="F:WindowsInstaller.SummaryInformationStreamProperty.Security">
+            <summary>Security</summary>
         </member>
     </members>
 </doc>

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using WindowsInstaller;
@@ -56,7 +58,7 @@ namespace WixSharp.UI
             }
 
             if (close)
-                view.Close();
+                view.CloseView();
 
             return data;
         }
@@ -97,9 +99,15 @@ namespace WixSharp.UI
             return MsiInterop.MsiRecordGetInteger(record, fieldIndex);
         }
 
-        public static void Close(this IntPtr view)
+        public static void Close(this IntPtr handle)
         {
-            MsiInterop.MsiViewClose(view);
+            Invoke(() => MsiInterop.MsiCloseHandle(handle));
+        }
+
+        public static void CloseView(this IntPtr view)
+        {
+            Invoke(() => MsiInterop.MsiViewClose(view));
+            Close(view);
         }
 
         public static int ToInt(this string obj)
@@ -128,6 +136,44 @@ namespace WixSharp.UI
             //}
             else
                 throw new Exception("Only Int32, String and Boolean conversion is supported");
+        }
+    }
+}
+
+namespace WixSharp.Msi
+{
+    /// <summary>
+    ///
+    /// </summary>
+    public static class EmbedTransform
+    {
+        static void check(this MsiError result, string errorContext = "")
+        {
+            if (result != MsiError.NoError) throw new ApplicationException("Error: EmbedTransform.Embed->" + errorContext);
+        }
+
+        /// <summary>
+        /// Embeds a language transformation (mst file) in the specified msi file.
+        /// </summary>
+        /// <param name="msi">The MSI file.</param>
+        /// <param name="mst">The MST file.</param>
+        public static void Do(string msi, string mst)
+        {
+            var lngId = new CultureInfo(Path.GetFileNameWithoutExtension(mst)).LCID.ToString();
+
+            MsiInterop.MsiOpenDatabase(msi, MsiDbPersistMode.ReadWrite, out IntPtr db).check(nameof(MsiInterop.MsiOpenDatabase));
+            MsiInterop.MsiDatabaseOpenView(db, "SELECT `Name`,`Data` FROM _Storages", out IntPtr view).check(nameof(MsiInterop.MsiDatabaseOpenView));
+
+            var record = MsiInterop.MsiCreateRecord(2);
+            MsiInterop.MsiRecordSetString(record, 1, lngId).check(nameof(MsiInterop.MsiRecordSetString));
+            MsiInterop.MsiRecordSetStream(record, 2, mst).check(nameof(MsiInterop.MsiRecordSetStream));
+
+            MsiInterop.MsiViewExecute(view, record).check(nameof(MsiInterop.MsiViewExecute));
+            MsiInterop.MsiViewModify(view, MsiModifyMode.ModifyAssign, record).check(nameof(MsiInterop.MsiViewModify));
+            MsiInterop.MsiDatabaseCommit(db).check(nameof(MsiInterop.MsiDatabaseCommit));
+
+            MsiInterop.MsiCloseHandle(view).check(nameof(MsiInterop.MsiCloseHandle));
+            MsiInterop.MsiCloseHandle(db).check(nameof(MsiInterop.MsiCloseHandle));
         }
     }
 }

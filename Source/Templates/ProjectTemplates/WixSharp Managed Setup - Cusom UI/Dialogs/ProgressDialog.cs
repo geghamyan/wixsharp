@@ -1,9 +1,7 @@
 using System;
-using Microsoft.Deployment.WindowsInstaller;
-using System.Diagnostics;
-using System.Threading;
 using System.Drawing;
-using System.Windows.Forms;
+using System.Security.Principal;
+using Microsoft.Deployment.WindowsInstaller;
 using WixSharp.CommonTasks;
 
 using WixSharp;
@@ -23,11 +21,28 @@ namespace WixSharpSetup.Dialogs
         {
             InitializeComponent();
             dialogText.MakeTransparentOn(banner);
+
+            showWaitPromptTimer = new System.Windows.Forms.Timer() { Interval = 4000 };
+            showWaitPromptTimer.Tick += (s, e) =>
+            {
+                this.waitPrompt.Visible = true;
+                showWaitPromptTimer.Stop();
+            };
         }
+
+        System.Windows.Forms.Timer showWaitPromptTimer;
 
         void ProgressDialog_Load(object sender, EventArgs e)
         {
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = Runtime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
+
+            if (!WindowsIdentity.GetCurrent().IsAdmin() && Uac.IsEnabled())
+            {
+                this.waitPrompt.Text = Runtime.Session.Property("UAC_WARNING");
+
+                showWaitPromptTimer.Start();
+            }
+
             ResetLayout();
 
             Shell.StartExecute();
@@ -57,19 +72,19 @@ namespace WixSharpSetup.Dialogs
         /// </summary>
         protected override void OnShellChanged()
         {
-            if (MsiRuntime.Session.IsUninstalling())
+            if (Runtime.Session.IsUninstalling())
             {
                 dialogText.Text =
                 Text = "[ProgressDlgTitleRemoving]";
                 description.Text = "[ProgressDlgTextRemoving]";
             }
-            else if (MsiRuntime.Session.IsRepairing())
+            else if (Runtime.Session.IsRepairing())
             {
                 dialogText.Text =
                 Text = "[ProgressDlgTextRepairing]";
                 description.Text = "[ProgressDlgTitleRepairing]";
             }
-            else if (MsiRuntime.Session.IsInstalling())
+            else if (Runtime.Session.IsInstalling())
             {
                 dialogText.Text =
                 Text = "[ProgressDlgTitleInstalling]";
@@ -95,6 +110,7 @@ namespace WixSharpSetup.Dialogs
                 case InstallMessage.InstallStart:
                 case InstallMessage.InstallEnd:
                     {
+                        showWaitPromptTimer.Stop();
                         waitPrompt.Visible = false;
                     }
                     break;
@@ -110,9 +126,25 @@ namespace WixSharpSetup.Dialogs
                             bool simple = true;
                             if (simple)
                             {
-                                for (int i = messageRecord.FieldCount - 1; i > 0; i--)
+                                /*
+                                messageRecord[2] unconditionally contains the string to display
+
+                                Examples:
+
+                                   messageRecord[0]    "Action 23:14:50: [1]. [2]"
+                                   messageRecord[1]    "InstallFiles"
+                                   messageRecord[2]    "Copying new files"
+                                   messageRecord[3]    "File: [1],  Directory: [9],  Size: [6]"
+
+                                   messageRecord[0]    "Action 23:15:21: [1]. [2]"
+                                   messageRecord[1]    "RegisterUser"
+                                   messageRecord[2]    "Registering user"
+                                   messageRecord[3]    "[1]"
+
+                                */
+                                if (messageRecord.FieldCount >= 3)
                                 {
-                                    message = messageRecord[i].ToString();
+                                    message = messageRecord[2].ToString();
                                 }
                             }
                             else
@@ -132,9 +164,13 @@ namespace WixSharpSetup.Dialogs
                             }
 
                             if (message.IsNotEmpty())
-                                currentAction.Text = currentActionLabel.Text + " " + message;
+                                currentAction.Text = "{0} {1}".FormatWith(currentActionLabel.Text, message);
                         }
-                        catch { }
+                        catch
+                        {
+                            //Catch all, we don't want the installer to crash in an
+                            //attempt to process message.
+                        }
                     }
                     break;
             }
@@ -174,17 +210,7 @@ namespace WixSharpSetup.Dialogs
             if (Shell.IsDemoMode)
                 Shell.GoNext();
             else
-            {
-                //Debug.Assert(false);
-
-                //try
-                //{
-                //    MsiRuntime.Session["CANCEL_REQUEST"] = "TRUE";
-                //}
-                //catch { }
-
                 Shell.Cancel();
-            }
         }
     }
 }

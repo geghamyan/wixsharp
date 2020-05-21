@@ -12,12 +12,12 @@ using System.Xml.XPath;
 using System.Xml;
 using System.Diagnostics;
 
-class Script
+static class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var project = new Project("CustomActionTest",
- 
+
                 new ManagedAction(CustomActions.RunAsAdminInstall, Return.check, When.Before, Step.LaunchConditions, Condition.NOT_Installed, Sequence.InstallUISequence),
                 new ManagedAction(CustomActions.MyCheckSql, Return.check, When.Before, Step.LaunchConditions, Condition.NOT_Installed, Sequence.InstallUISequence),
                 new ManagedAction(CustomActions.MyCheckMvc4, Return.check, When.Before, Step.LaunchConditions, Condition.NOT_Installed, Sequence.InstallUISequence),
@@ -29,7 +29,7 @@ class Script
     }
 }
 
-public class CustomActions
+public static class CustomActions
 {
     [CustomAction]
     public static ActionResult RunAsAdminInstall(Session session)

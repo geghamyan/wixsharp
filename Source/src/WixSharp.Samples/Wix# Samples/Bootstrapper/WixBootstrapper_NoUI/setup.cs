@@ -5,19 +5,19 @@
 //css_ref Wix_bin\SDK\Microsoft.Deployment.WindowsInstaller.dll;
 
 using System;
+using System.Diagnostics;
 using System.Linq;
-using System.Xml.Linq;
+using System.Windows.Forms;
 using System.Xml;
-using sys = System.Reflection;
+using System.Xml.Linq;
+using Microsoft.Deployment.WindowsInstaller;
 using WixSharp;
 using WixSharp.Bootstrapper;
-using Microsoft.Deployment.WindowsInstaller;
-using System.Windows.Forms;
-using System.Diagnostics;
+using sys = System.Reflection;
 
 public class InstallScript
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var productProj =
             new Project("My Product",
@@ -32,14 +32,14 @@ public class InstallScript
         var productMsi = productProj.BuildMsi();
 
         var bootstrapper =
-                new Bundle("My Product Suite",
-                    new PackageGroupRef("NetFx40Web"),
-                    new MsiPackage(productMsi)
-                    {
-                        Id = "MyProductPackageId",
-                        DisplayInternalUI = true,
-                        Visible = true // show MSI entry in ARP
-                    });
+            new Bundle("My Product Suite",
+                       new PackageGroupRef("NetFx40Web"),
+                       new MsiPackage(productMsi)
+                       {
+                           Id = "MyProductPackageId",
+                           DisplayInternalUI = true,
+                           Visible = true // show MSI entry in ARP
+                       });
 
         bootstrapper.SuppressWixMbaPrereqVars = true; //needed because NetFx40Web also defines WixMbaPrereqVars
         bootstrapper.Version = new Version("1.0.0.0");
@@ -63,10 +63,19 @@ public class InstallScript
     }
 }
 
-class BalCondition : WixEntity, IGenericEntity
+/// <summary>
+///
+/// </summary>
+public class BalCondition : WixEntity, IGenericEntity
 {
+    /// <summary>
+    /// The condition expression
+    /// </summary>
     public string Condition;
 
+    /// <summary>
+    /// The condition message
+    /// </summary>
     public string Message;
 
     public void Process(ProcessingContext context)
@@ -74,7 +83,7 @@ class BalCondition : WixEntity, IGenericEntity
         context.Project.Include(WixExtension.Bal); //indicate that candle needs to use WixBlExtension.dll
 
         var element = new XElement(WixExtension.Bal.ToXName("Condition"), Condition)
-                          .SetAttribute("Message", Message);
+                                   .SetAttribute("Message", Message);
 
         context.XParent.Add(element);
     }

@@ -3,15 +3,15 @@ using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.InteropServices;
-using Microsoft.Deployment.WindowsInstaller;
 using System.Windows.Forms;
+using Microsoft.Deployment.WindowsInstaller;
 
 namespace WixSharp
 {
     /// <summary>
-    ///
+    /// Class for hosting all custom actions of the ManagedProject
     /// </summary>
-    public class ManagedProjectActions
+    public static class ManagedProjectActions
     {
         /// <summary>
         /// Internal ManagedProject action. It must be public for the DTF accessibility but it is not to be used by the user/developer.
@@ -46,6 +46,11 @@ namespace WixSharp
         public static ActionResult WixSharp_BeforeInstall_Action(Session session)
         {
             // Debugger.Launch();
+            session["ADDFEATURES"] = session.Features
+                                            .Where(x => x.RequestState != InstallState.Absent)
+                                            .Select(x => x.Name)
+                                            .JoinBy(",");
+
             return ManagedProject.InvokeClientHandlers(session, "BeforeInstall");
         }
 

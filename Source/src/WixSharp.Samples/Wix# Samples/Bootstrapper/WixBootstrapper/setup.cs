@@ -4,15 +4,16 @@
 //css_ref System.Xml.Linq.dll;
 //css_ref ..\..\..\Wix_bin\SDK\Microsoft.Deployment.WindowsInstaller.dll;
 using System;
-using io = System.IO;
+using System.Windows.Forms;
+using System.Xml.Linq;
 using WixSharp;
 using WixSharp.Bootstrapper;
 using WixSharp.CommonTasks;
-using System.Windows.Forms;
+using io = System.IO;
 
 public class InstallScript
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         string productMsi = BuildMainMsi();
         string crtMsi = BuildCrtMsi();
@@ -45,8 +46,17 @@ public class InstallScript
 
                     //msiOnlinePackage, //just a demo sample
 
-                    new MsiPackage(crtMsi) { DisplayInternalUI = true, Visible = true, MsiProperties = "PACKAGE_PROPERTY=[BundleVariable]" },
-                    new MsiPackage(productMsi) { DisplayInternalUI = true, Payloads = new[] { "script.dll".ToPayload() } });
+                    new MsiPackage(crtMsi)
+                    {
+                        DisplayInternalUI = true,
+                        Visible = true,
+                        MsiProperties = "PACKAGE_PROPERTY=[BundleVariable]"
+                    },
+                    new MsiPackage(productMsi)
+                    {
+                        DisplayInternalUI = true,
+                        Payloads = new[] { "script.dll".ToPayload() }
+                    });
 
         bootstrapper.AboutUrl = "https://github.com/oleg-shilo/wixsharp/";
         bootstrapper.IconFile = "app_icon.ico";
@@ -67,27 +77,32 @@ public class InstallScript
         // bootstrapper.Application.LicensePath = null; //HyperlinkLicense app with no license
 
         bootstrapper.Application.AttributesDefinition = "ShowVersion=yes; ShowFilesInUse=yes";
-        // bootstrapper.Application.Bo
         bootstrapper.Include(WixExtension.Util);
 
-        // The code below sets WiX variables 'Netfx4FullVersion' and 'AdobeInstalled'. Note it has no affect on
-        //the runtime behavior and 'FileSearch' and "RegistrySearch" are only provided as an example.
-        bootstrapper.AddWixFragment("Wix/Bundle",
-                                     new UtilRegistrySearch
-                                     {
-                                         Root = RegistryHive.LocalMachine,
-                                         Key = @"SOFTWARE\Microsoft\Net Framework Setup\NDP\v4\Full",
-                                         Value = "Version",
-                                         Variable = "Netfx4FullVersion"
-                                     },
-                                     new UtilFileSearch
-                                     {
-                                         Path = @"[ProgramFilesFolder]Adobe\adobe.exe",
-                                         Result = SearchResult.exists,
-                                         Variable = "AdobeInstalled"
-                                     });
+        bootstrapper.IncludeWixExtension(@"WixDependencyExtension.dll", "dep", "http://schemas.microsoft.com/wix/DependencyExtension");
+        bootstrapper.AttributesDefinition = "{dep}ProviderKey=01234567-8901-2345-6789-012345678901";
 
-        bootstrapper.Variables = new[] { new Variable("BundleVariable", "333"), };
+        // The code below sets WiX variables 'Netfx4FullVersion' and 'AdobeInstalled'. Note it has no affect on
+        //the runtime behaviour and 'FileSearch' and "RegistrySearch" are only provided as an example.
+        bootstrapper.AddWixFragment("Wix/Bundle",
+                                    new UtilRegistrySearch
+                                    {
+                                        Root = RegistryHive.LocalMachine,
+                                        Key = @"SOFTWARE\Microsoft\Net Framework Setup\NDP\v4\Full",
+                                        Value = "Version",
+                                        Variable = "Netfx4FullVersion"
+                                    },
+                                    new UtilFileSearch
+                                    {
+                                        Path = @"[ProgramFilesFolder]Adobe\adobe.exe",
+                                        Result = SearchResult.exists,
+                                        Variable = "AdobeInstalled"
+                                    });
+
+        // bootstrapper.AddXml("Wix/Bundle", "<Log PathVariable=\"LogFileLocation\"/>");
+
+        bootstrapper.AddXmlElement("Wix/Bundle", "Log", "PathVariable=LogFileLocation");
+        bootstrapper.Variables = new[] { new Variable("LogFileLocation", @"C:\temp\setup.log") { Overridable = true } };
         // or
         // bootstrapper.Variables = "BundleVariable=333".ToStringVariables();
         // bootstrapper.Variables = Variables.ToStringVariables("BundleVariable=333");
@@ -116,11 +131,11 @@ public class InstallScript
     static public string BuildMainMsi()
     {
         var productProj =
-           new Project("My Product",
+            new Project("My Product",
                 new Dir(@"%ProgramFiles%\My Company\My Product",
                     new File("readme.txt"),
                     new File("logo.png")))
-           { InstallScope = InstallScope.perMachine };
+            { InstallScope = InstallScope.perMachine };
 
         productProj.GUID = new Guid("6f330b47-2577-43ad-9095-1861ba25889b");
         productProj.Version = new Version("2.0.0.0");

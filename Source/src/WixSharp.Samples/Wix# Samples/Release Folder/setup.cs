@@ -7,21 +7,70 @@ using WixSharp;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
-        SimpleScenario();
+        // SimpleScenario();
+        HeatScenario();
     }
 
     static void SimpleScenario()
     {
+        Compiler.AutoGeneration.IgnoreWildCardEmptyDirectories = true;
+
         var project =
-           new Project("MyProduct",
-               new Dir(@"%ProgramFiles%\My Company\My Product",
-                   new Files(@"..\Release Folder\Release\*.*"),
-                   new ExeFileShortcut("Uninstall My Product", "[System64Folder]msiexec.exe", "/x [ProductCode]")));
+            new Project("MyProduct",
+                new Dir(@"%ProgramFiles%\My Company\My Product",
+                    new Files(@"..\Release Folder\test\*.exe")
+                    {
+                        OnProcess = file =>
+                        {
+                            file.OverwriteOnInstall = true;
+                        }
+                    },
+        new ExeFileShortcut("Uninstall My Product", "[System64Folder]msiexec.exe", "/x [ProductCode]"))); ;
 
         project.GUID = new Guid("6f330b47-2577-43ad-9095-1561ba25889b");
 
+        project.BuildMsi();
+    }
+
+    static void SimpleScenario2()
+    {
+        Compiler.AutoGeneration.IgnoreWildCardEmptyDirectories = true;
+
+        var project =
+            new Project("MyProduct",
+                new Dir(@"%ProgramFiles%\My Company\My Product",
+                    Files.FromBuildDir(@"TestApps\TestApp1\bin\Release"),
+                    Files.FromBuildDir(@"TestApps\TestApp2\bin\Release", ".exe|.dll"),
+
+        new ExeFileShortcut("Uninstall My Product", "[System64Folder]msiexec.exe", "/x [ProductCode]")));
+
+        project.GUID = new Guid("6f330b47-2577-43ad-9095-1561ba25889b");
+
+        project.BuildMsi();
+    }
+
+    static void HeatScenario()
+    {
+        var project =
+            new ManagedProject("HeatAggregatedMsi",
+                new Dir(@"%ProgramFiles%\My Company\My Product",
+                    new File("Setup.cs")));
+
+        project.AddVsProjectOutput(
+            @"TestApps\TestApp1\TestApp1.csproj",
+            @"TestApps\TestApp2\TestApp2.csproj");
+
+        // or using Heat `Harvester` class directly as below
+        //
+        // var harvester = new Harvester(project);
+        // harvester.AddProjects(
+        //     @"TestApps\TestApp1\TestApp1.csproj",
+        //     @"TestApps\TestApp2\TestApp2.csproj");
+
+        Compiler.PreserveTempFiles = true;
+        Compiler.EmitRelativePaths = false;
         project.BuildMsi();
     }
 
@@ -40,16 +89,17 @@ class Script
                         AttributesDefinition = "ReadOnly=no" //all files will be marked with this attribute
                     },
 
-                    new ExeFileShortcut("Uninstall My Product", "[System64Folder]msiexec.exe", "/x [ProductCode]")));
+                        new ExeFileShortcut("Uninstall My Product", "[System64Folder]msiexec.exe", "/x [ProductCode]")));
 
         project.GUID = new Guid("6f330b47-2577-43ad-9095-1561ba25889b");
 
         project.ResolveWildCards(ignoreEmptyDirectories: true)
                .FindFirstFile("MyApp.exe")
-               .Shortcuts = new[] {
-                                       new FileShortcut("MyApp.exe", "INSTALLDIR"),
-                                       new FileShortcut("MyApp.exe", "%Desktop%")
-                                  };
+               .Shortcuts = new[]
+               {
+                   new FileShortcut("MyApp.exe", "INSTALLDIR"),
+                   new FileShortcut("MyApp.exe", "%Desktop%")
+               };
 
         Compiler.PreserveTempFiles = true;
         Compiler.EmitRelativePaths = false;

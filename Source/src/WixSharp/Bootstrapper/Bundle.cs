@@ -1,10 +1,10 @@
-using sys = System.IO;
 using System;
 using System.Collections.Generic;
-using System.Xml.Linq;
 using System.Linq;
-using WixSharp.CommonTasks;
 using System.Text;
+using System.Xml.Linq;
+using WixSharp.CommonTasks;
+using sys = System.IO;
 
 namespace WixSharp.Bootstrapper
 {
@@ -32,7 +32,7 @@ namespace WixSharp.Bootstrapper
     /// bootstrapper.Build();
     /// </code>
     /// </example>
-    public partial class Bundle : WixProject
+    public class Bundle : WixProject
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Bootstrapper"/> class.
@@ -368,9 +368,6 @@ namespace WixSharp.Bootstrapper
             Compiler.OutputWriteLine += collect;
             try
             {
-                if (Compiler.ClientAssembly.IsEmpty())
-                    Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
                 if (path == null)
                     return Compiler.Build(this);
                 else
@@ -416,9 +413,6 @@ namespace WixSharp.Bootstrapper
         /// <returns></returns>
         public string BuildCmd(string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 return Compiler.BuildCmd(this);
             else
@@ -447,6 +441,12 @@ namespace WixSharp.Bootstrapper
                 }
                 catch { }
             }
+        }
+
+        internal void ResetAutoIdGeneration(bool supressWarning)
+        {
+            WixGuid.ConsistentGenerationStartValue = this.UpgradeCode;
+            WixEntity.ResetIdGenerator(supressWarning);
         }
     }
 

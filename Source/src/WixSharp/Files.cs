@@ -35,7 +35,6 @@ using IO = System.IO;
 
 namespace WixSharp
 {
-
     /// <summary>
     /// Defines all files of a given source directory and all subdirectories to be installed on target system.
     /// <para>
@@ -46,6 +45,8 @@ namespace WixSharp
     /// This class is a logical equivalent of <see cref="DirFiles"/> except it also analyses all files in all subdirectories.
     /// <see cref="DirFiles"/> excludes files in subdirectories.
     /// </para>
+    /// <para>You can control inclusion of empty directories during wild card resolving by adjusting the compiler setting
+    /// <c>Compiler.AutoGeneration.IgnoreWildCardEmptyDirectories.</c></para>
     /// </summary>
     /// <remarks>
     /// Note that all files matching wildcard are resolved into absolute path thus it may not always be suitable
@@ -63,6 +64,21 @@ namespace WixSharp
     public partial class Files : WixEntity
     {
         /// <summary>
+        /// Aggregates the files from the build directory. It is nothing else but a simplified creation of the
+        /// <see cref="WixSharp.Files"/> as below:
+        /// <code>
+        ///     new Files(buildDir.PathJoin("*.*"),
+        ///               f => f.EndsWithAny(ignoreCase: true, new[]{".exe",".dll,".xml",".config", ".json"}))
+        /// </code>
+        /// </summary>
+        /// <param name="buildDir">The build dir.</param>
+        /// <param name="fileExtensions">The file extensions to match the files that need to be included in the deployment.</param>
+        /// <returns></returns>
+        public static Files FromBuildDir(string buildDir, string fileExtensions = ".exe|.dll|.xml|.config|.json")
+            => new Files(buildDir.PathJoin("*.*"),
+                         f => f.EndsWithAny(true, fileExtensions.Split('|')));
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Files"/> class.
         /// </summary>
         public Files()
@@ -71,6 +87,11 @@ namespace WixSharp
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Files"/> class with properties/fields initialized with specified parameters.
+        /// <para>You can control inclusion of empty folders (if picked by the wild card patter) by setting
+        /// <see cref="AutoGenerationOptions.IgnoreWildCardEmptyDirectories"/> to <c>true</c>.</para>
+        /// <para>If more specific control is required you can always use a flat list of <c>Dirs</c> of the
+        /// Project.<see cref="Project.AllDirs"/> to remove the undesired folder from its parent collection.
+        /// </para>
         /// </summary>
         /// <param name="sourcePath">The relative path to source directory. It must include wildcard pattern for files to be included
         /// into MSI (e.g. <c>new Files(@"Release\Bin\*.*")</c>).</param>
@@ -82,6 +103,11 @@ namespace WixSharp
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Files"/> class with properties/fields initialized with specified parameters.
+        /// <para>You can control inclusion of empty folders (if picked by the wild card patter) by setting
+        /// <see cref="AutoGenerationOptions.IgnoreWildCardEmptyDirectories"/> to <c>true</c>.</para>
+        /// <para>If more specific control is required you can always use a flat list of <c>Dirs</c> of the
+        /// Project.<see cref="Project.AllDirs"/> to remove the undesired folder from its parent collection.
+        /// </para>
         /// </summary>
         /// <param name="sourcePath">The relative path to source directory. It must include wildcard pattern for files to be included
         /// into MSI (e.g. <c>new Files(@"Release\Bin\*.*")</c>).</param>
@@ -96,6 +122,11 @@ namespace WixSharp
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Files"/> class with properties/fields initialized with specified parameters.
+        /// <para>You can control inclusion of empty folders (if picked by the wild card patter) by setting
+        /// <see cref="AutoGenerationOptions.IgnoreWildCardEmptyDirectories"/> to <c>true</c>.</para>
+        /// <para>If more specific control is required you can always use a flat list of <c>Dirs</c> of the
+        /// Project.<see cref="Project.AllDirs"/> to remove the undesired folder from its parent collection.
+        /// </para>
         /// </summary>
         /// <param name="feature"><see cref="Feature"></see> the directory files should be included in.</param>
         /// <param name="sourcePath">The relative path to source directory. It must include wildcard pattern for files to be included
@@ -109,6 +140,11 @@ namespace WixSharp
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Files"/> class with properties/fields initialized with specified parameters.
+        /// <para>You can control inclusion of empty folders (if picked by the wild card patter) by setting
+        /// <see cref="AutoGenerationOptions.IgnoreWildCardEmptyDirectories"/> to <c>true</c>.</para>
+        /// <para>If more specific control is required you can always use a flat list of <c>Dirs</c> of the
+        /// Project.<see cref="Project.AllDirs"/> to remove the undesired folder from its parent collection.
+        /// </para>
         /// </summary>
         /// <param name="feature"><see cref="Feature"></see> the directory files should be included in.</param>
         /// <param name="sourcePath">The relative path to source directory. It must include wildcard pattern for files to be included
@@ -132,6 +168,13 @@ namespace WixSharp
         /// The filter delegate. It is applied for every file to be evaluated for the inclusion into MSI.
         /// </summary>
         public Predicate<string> Filter = (file => true);
+
+        /// <summary>
+        /// The delegate that is called when a file matching the wildcard of the sourcePath is processed
+        /// and a <see cref="WixSharp.File"/> item is added to the project. It is the most convenient way of
+        /// adjusting the <see cref="WixSharp.File"/> item properties.
+        /// </summary>
+        public Action<File> OnProcess = null;
 
         /// <summary>
         /// Wildcard pattern for files to be included into MSI.
@@ -179,14 +222,15 @@ namespace WixSharp
 
                     subDir.AddFeatures(this.ActualFeatures);
                     subDir.AddDirFileCollection(
-                                        new DirFiles(IO.Path.Combine(subDirPath, this.IncludeMask))
-                                        {
-                                            Feature = this.Feature,
-                                            Features = this.Features,
-                                            AttributesDefinition = this.AttributesDefinition,
-                                            Attributes = this.Attributes,
-                                            Filter = this.Filter
-                                        });
+                                                new DirFiles(IO.Path.Combine(subDirPath, this.IncludeMask))
+                                                {
+                                                    Feature = this.Feature,
+                                                    Features = this.Features,
+                                                    AttributesDefinition = this.AttributesDefinition,
+                                                    Attributes = this.Attributes,
+                                                    Filter = this.Filter,
+                                                    OnProcess = this.OnProcess
+                                                });
 
                     AgregateSubDirs(subDir, subDirPath);
                 }
@@ -200,7 +244,8 @@ namespace WixSharp
                     Features = this.Features,
                     AttributesDefinition = this.AttributesDefinition,
                     Attributes = this.Attributes.Clone(),
-                    Filter = this.Filter
+                    Filter = this.Filter,
+                    OnProcess = this.OnProcess
                 }
             };
 
@@ -221,14 +266,15 @@ namespace WixSharp
 
                 subDir.AddFeatures(this.ActualFeatures);
                 subDir.AddDirFileCollection(
-                                    new DirFiles(IO.Path.Combine(subDirPath, this.IncludeMask))
-                                    {
-                                        Feature = this.Feature,
-                                        Features = this.Features,
-                                        AttributesDefinition = this.AttributesDefinition,
-                                        Attributes = this.Attributes,
-                                        Filter = this.Filter
-                                    });
+                                            new DirFiles(IO.Path.Combine(subDirPath, this.IncludeMask))
+                                            {
+                                                Feature = this.Feature,
+                                                Features = this.Features,
+                                                AttributesDefinition = this.AttributesDefinition,
+                                                Attributes = this.Attributes,
+                                                Filter = this.Filter,
+                                                OnProcess = this.OnProcess
+                                            });
 
                 AgregateSubDirs(subDir, subDirPath);
             }

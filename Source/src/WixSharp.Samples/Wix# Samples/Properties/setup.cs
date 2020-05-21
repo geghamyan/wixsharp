@@ -10,7 +10,7 @@ using WixSharp.CommonTasks;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var project = new Project()
         {
@@ -19,25 +19,26 @@ class Script
 
             Dirs = new[] { new Dir(@"%ProgramFiles%\PropertiesTest") },
 
-            Actions = new WixSharp.Action[] 
-            { 
-                new ManagedAction("ShowGritting"), 
+            Actions = new WixSharp.Action[]
+            {
+                new ManagedAction(CustomActions.ShowGritting),
                 new WixQuietExecAction("notepad.exe", "[NOTEPAD_FILE]"),
             },
 
-            Properties = new[] 
-            { 
+            Properties = new[]
+            {
                 new Property("Gritting", "Hello World!"),
-                new Property("Title", "Properties Test"),
-                new Property("NOTEPAD_FILE", @"C:\boot.ini")
+                new Property("Title", "Properties Test") { Hidden = true },
+                new PublicProperty("NOTEPAD_FILE", @"C:\boot.ini")
             }
         };
 
-        Compiler.BuildMsi(project);
+        project.PreserveTempFiles = true;
+        project.BuildMsi();
     }
 }
 
-public class CustonActions
+public class CustomActions
 {
     [CustomAction]
     public static ActionResult ShowGritting(Session session)
@@ -60,6 +61,3 @@ public class CustonActions
         return ActionResult.Success;
     }
 }
-
-
-

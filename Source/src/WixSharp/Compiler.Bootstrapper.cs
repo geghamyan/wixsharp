@@ -27,7 +27,6 @@ THE SOFTWARE.
 
 #endregion Licence...
 
-using Microsoft.Deployment.WindowsInstaller;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,6 +37,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using Microsoft.Deployment.WindowsInstaller;
 using WixSharp.Bootstrapper;
 using IO = System.IO;
 
@@ -56,9 +56,6 @@ namespace WixSharp
         {
             path = path.ExpandEnvVars();
 
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             string oldCurrDir = Environment.CurrentDirectory;
 
             try
@@ -70,7 +67,7 @@ namespace WixSharp
 
                 if (!IO.File.Exists(compiler) || !IO.File.Exists(linker))
                 {
-                    Compiler.OutputWriteLine("Wix binaries cannot be found. Expected location is " + IO.Path.GetDirectoryName(compiler));
+                    Compiler.OutputWriteLine("Wix binaries cannot be found. Expected location is " + compiler.PathGetDirName());
                     throw new ApplicationException("Wix compiler/linker cannot be found");
                 }
                 else
@@ -92,7 +89,24 @@ namespace WixSharp
                         wxsFiles += " \"" + file + "\"";
 
                     var candleOptions = CandleOptions + " " + project.CandleOptions;
-                    string command = (candleOptions + " " + extensionDlls + " \"" + wxsFile + "\" " + wxsFiles + " -out \"" + objFile + "\"").ExpandEnvVars();
+                    string command = candleOptions + " " + extensionDlls + " \"" + wxsFile + "\" ";
+
+                    string outDir = null;
+                    if (wxsFiles.IsNotEmpty())
+                    {
+                        command += wxsFiles;
+                        outDir = IO.Path.GetDirectoryName(wxsFile);
+                        // if multiple files are specified candle expect a path for the -out switch
+                        // or no path at all (use current directory)
+                        // note the '\' character must be escaped twice: as a C# string and as a CMD char
+                        if (outDir.IsNotEmpty())
+                            command += $" -out \"{outDir}\\\\\"";
+                    }
+                    else
+                        command += $" -out \"{objFile}\"";
+
+                    command = command.ExpandEnvVars();
+
                     Run(compiler, command);
 
                     if (IO.File.Exists(objFile))
@@ -100,15 +114,18 @@ namespace WixSharp
                         string outFile = wxsFile.PathChangeExtension(".exe");
 
                         if (path.IsNotEmpty())
-                            outFile = IO.Path.GetFullPath(path);
+                            outFile = path.PathGetFullPath().PathEnsureExtension(".exe");
 
-                        if (IO.File.Exists(outFile))
-                            IO.File.Delete(outFile);
+                        outFile.DeleteIfExists();
 
-                        //if (project.IsLocalized && IO.File.Exists(project.LocalizationFile))
-                        //    Run(linker, LightOptions + " \"" + objFile + "\" -out \"" + msiFile + "\"" + extensionDlls + " -cultures:" + project.Language + " -loc \"" + project.LocalizationFile + "\"");
-                        //else
+                        string fragmentObjectFiles = project.WxsFiles
+                                                     .Distinct()
+                                                     .JoinBy(" ", file => "\"" + outDir.PathCombine(IO.Path.GetFileNameWithoutExtension(file)) + ".wixobj\"");
+
                         string lightOptions = LightOptions + " " + project.LightOptions;
+
+                        if (fragmentObjectFiles.IsNotEmpty())
+                            lightOptions += " " + fragmentObjectFiles;
 
                         Run(linker, lightOptions + " \"" + objFile + "\" -out \"" + outFile + "\"" + extensionDlls + " -cultures:" + project.Language);
 
@@ -117,7 +134,7 @@ namespace WixSharp
                             Compiler.TempFiles.Add(wxsFile);
 
                             Compiler.OutputWriteLine("\n----------------------------------------------------------\n");
-                            Compiler.OutputWriteLine("Bootstrapper file has been built: " + path + "\n");
+                            Compiler.OutputWriteLine("Bootstrapper file has been built: " + outFile + "\n");
                             Compiler.OutputWriteLine(" Name       : " + project.Name);
                             Compiler.OutputWriteLine(" Version    : " + project.Version);
                             Compiler.OutputWriteLine(" UpgradeCode: {" + project.UpgradeCode + "}\n");
@@ -164,9 +181,6 @@ namespace WixSharp
         /// <exception cref="System.ApplicationException">Wix compiler/linker cannot be found</exception>
         public static string BuildCmd(Bundle project, string path = null)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             if (path == null)
                 path = IO.Path.GetFullPath(IO.Path.Combine(project.OutDir, "Build_" + project.OutFileName) + ".cmd");
 
@@ -202,16 +216,34 @@ namespace WixSharp
                     wxsFiles += " \"" + file + "\"";
 
                 var candleOptions = CandleOptions + " " + project.CandleOptions;
-                string batchFileContent = wixLocationEnvVar + "\"" + compiler + "\" " + candleOptions + " " + extensionDlls + " \"" + IO.Path.GetFileName(wxsFile) + "\" " + wxsFiles + "\r\n";
 
-                //Run(compiler, CandleOptions + " " + extensionDlls + " \"" + wxsFile + "\" -out \"" + objFile + "\"");
+                string batchFileContent = wixLocationEnvVar + "\"" + compiler + "\" " + candleOptions + " " + extensionDlls +
+                                          " \"" + IO.Path.GetFileName(wxsFile) + "\" ";
 
-                //if (project.IsLocalized && IO.File.Exists(project.LocalizationFile))
-                //    Run(linker, LightOptions + " \"" + objFile + "\" -out \"" + msiFile + "\"" + extensionDlls + " -cultures:" + project.Language + " -loc \"" + project.LocalizationFile + "\"");
-                //else
-                //Run(linker, LightOptions + " \"" + objFile + "\" -out \"" + msiFile + "\"" + extensionDlls + " -cultures:" + project.Language);
+                string outDir = null;
+                if (wxsFiles.IsNotEmpty())
+                {
+                    batchFileContent += wxsFiles;
+                    outDir = IO.Path.GetDirectoryName(wxsFile);
+                    // if multiple files are specified candle expect a path for the -out switch
+                    // or no path at all (use current directory)
+                    // note the '\' character must be escaped twice: as a C# string and as a CMD char
+                    if (outDir.IsNotEmpty())
+                        batchFileContent += $" -out \"{outDir}\\\\\"";
+                }
+                else
+                    batchFileContent += $" -out \"{objFile}\"";
+
+                batchFileContent += "\r\n";
+
+                string fragmentObjectFiles = project.WxsFiles
+                                             .Distinct()
+                                             .JoinBy(" ", file => "\"" + outDir.PathCombine(IO.Path.GetFileNameWithoutExtension(file)) + ".wixobj\"");
 
                 string lightOptions = LightOptions + " " + project.LightOptions;
+
+                if (fragmentObjectFiles.IsNotEmpty())
+                    lightOptions += " " + fragmentObjectFiles;
 
                 if (path.IsNotEmpty())
                     lightOptions += " -out \"" + IO.Path.ChangeExtension(objFile, ".exe") + "\"";
@@ -236,10 +268,8 @@ namespace WixSharp
         {
             lock (typeof(Compiler))
             {
-                //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-                //returns the build script assembly but not just another method of Compiler.
-                if (ClientAssembly.IsEmpty())
-                    ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
+                if (Compiler.ClientAssembly.IsEmpty())
+                    Compiler.ClientAssembly = Compiler.FindClientAssemblyInCallStack();
 
                 project.Validate();
 
@@ -248,7 +278,8 @@ namespace WixSharp
                     var oldAlgorithm = AutoGeneration.CustomIdAlgorithm;
                     try
                     {
-                        WixEntity.ResetIdGenerator(false);
+                        project.ResetAutoIdGeneration(supressWarning: false);
+
                         AutoGeneration.CustomIdAlgorithm = project.CustomIdAlgorithm ?? AutoGeneration.CustomIdAlgorithm;
 
                         string file = IO.Path.GetFullPath(IO.Path.Combine(project.OutDir, project.OutFileName) + ".wxs");
@@ -266,7 +297,7 @@ namespace WixSharp
                         var wixNamespace = Compiler.IsWix4 ? wix4Namespace : wix3Namespace;
 
                         var doc = XDocument.Parse(
-                               @"<?xml version=""1.0"" encoding=""utf-8""?>
+                                @"<?xml version=""1.0"" encoding=""utf-8""?>
                              " + $"<Wix xmlns=\"{wixNamespace}\" {extraNamespaces} " + @" >
                         </Wix>");
 
@@ -275,6 +306,9 @@ namespace WixSharp
                         AutoElements.NormalizeFilePaths(doc, project.SourceBaseDir, EmitRelativePaths);
 
                         project.InvokeWixSourceGenerated(doc);
+
+                        AutoElements.ExpandCustomAttributes(doc, project);
+
                         if (WixSourceGenerated != null)
                             WixSourceGenerated(doc);
 
@@ -310,6 +344,7 @@ namespace WixSharp
                     finally
                     {
                         AutoGeneration.CustomIdAlgorithm = oldAlgorithm;
+                        project.ResetAutoIdGeneration(supressWarning: true);
                     }
                 }
             }
@@ -322,9 +357,6 @@ namespace WixSharp
         /// <returns></returns>
         public static string Build(Bundle project)
         {
-            if (Compiler.ClientAssembly.IsEmpty())
-                Compiler.ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             string outFile = IO.Path.GetFullPath(IO.Path.Combine(project.OutDir, project.OutFileName) + ".exe");
 
             Utils.EnsureFileDir(outFile);

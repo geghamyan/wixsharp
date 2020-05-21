@@ -111,10 +111,14 @@
     <Compile Include="AppSearch.cs" />
     <Compile Include="Assembly.cs" />
     <Compile Include="AutoElements.cs" />
+    <Compile Include="BalCondition.cs" />
     <Compile Include="Bootstrapper\UtilFileSearch.cs" />
+    <Compile Include="Bootstrapper\UtilProductSearch.cs" />
     <Compile Include="Bootstrapper\UtilRegistrySearch.cs" />
     <Compile Include="Bootstrapper\Variable.cs" />
     <Compile Include="CloseApplication.cs" />
+    <Compile Include="ComRegistration.cs" />
+    <Compile Include="CopyFile.cs" />
     <Compile Include="CustomActionRef.cs" />
     <Compile Include="DigitalSignature.cs" />
     <Compile Include="DigitalSignatureBootstrapper.cs" />
@@ -126,8 +130,12 @@
     <Compile Include="Certificate.cs" />
     <Compile Include="CommonTasks.cs" />
     <Compile Include="Compiler.Bootstrapper.cs" />
+    <Compile Include="Error.cs" />
     <Compile Include="FileSearch.cs" />
+    <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Heat\Harvester.cs" />
     <Compile Include="IconFile.cs" />
+    <Compile Include="IISWebSite.cs" />
     <Compile Include="IniFile.cs" />
     <Compile Include="NativeImage.cs" />
     <Compile Include="EventSource.cs" />
@@ -138,6 +146,9 @@
     <Compile Include="MajorUpgrade.cs" />
     <Compile Include="Media.cs" />
     <Compile Include="Nsis\NsisBootstrapper.cs" />
+    <Compile Include="Nsis\NsisBootstrapperLegacy.cs" />
+    <Compile Include="Nsis\Package.cs" />
+    <Compile Include="Nsis\Payload.cs" />
     <Compile Include="Nsis\RequestExecutionLevel.cs" />
     <Compile Include="Nsis\SplashScreen.cs" />
     <Compile Include="Nsis\VersionInformation.cs" />
@@ -146,15 +157,21 @@
     <Compile Include="Properties\AssemblyInfo.version.cs" />
     <Compile Include="Reboot.cs" />
     <Compile Include="RegistrySearch.cs" />
+    <Compile Include="RegKey.cs" />
     <Compile Include="RemoveRegistryValue.cs" />
     <Compile Include="RemoveRegistryKey.cs" />
     <Compile Include="ResilientPackage.cs" />
+    <Compile Include="ServiceConfig.cs" />
+    <Compile Include="ServiceConfigUtil.cs" />
+    <Compile Include="SvcEvent.cs" />
+    <Compile Include="ServiceDependency.cs" />
     <Compile Include="SharedExtensions.cs" />
     <Compile Include="SqlDatabase.cs" />
     <Compile Include="SqlScript.cs" />
     <Compile Include="SqlString.cs" />
     <Compile Include="StringEnum.cs" />
     <Compile Include="UACRevealer.cs" />
+    <Compile Include="UrlAce.cs" />
     <Compile Include="UrlReservation.cs" />
     <Compile Include="User.cs" />
     <Compile Include="Utilities\RegistryWOW6432.cs" />
@@ -198,6 +215,9 @@
     <Compile Include="Property.cs" />
     <Compile Include="XmlFile.cs" />
     <EmbeddedResource Include="Nsis\macros.nsh" />
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
     <None Include="QtCmdLineAction.cs" />
     <Compile Include="RegFileImporter.cs" />
     <Compile Include="RegValueProperty.cs" />
@@ -239,7 +259,12 @@
   <ItemGroup>
     <None Include="WixSharpStrongName.snk" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\WixSharp.Msi\WixSharp.Msi\WixSharp.Msi.csproj">
+      <Project>{611d8893-7d39-4f3c-92d5-0554f780a914}</Project>
+      <Name>WixSharp.Msi</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

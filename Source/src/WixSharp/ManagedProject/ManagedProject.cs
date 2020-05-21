@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
+
+using System.Diagnostics;
+
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using Microsoft.Deployment.WindowsInstaller;
 using WixSharp.CommonTasks;
+
 using IO = System.IO;
-
-using System.IO;
-
-using System.Diagnostics;
 
 namespace WixSharp
 {
@@ -55,7 +56,7 @@ namespace WixSharp
     /// project.BuildMsi();
     /// </code>
     /// </example>
-    public partial class ManagedProject : Project
+    public class ManagedProject : Project
     {
         //some materials to consider: http://cpiekarski.com/2012/05/18/wix-custom-action-sequencing/
 
@@ -310,11 +311,11 @@ namespace WixSharp
                 string dllEntry = "WixSharp_InitRuntime_Action";
 
                 bool needInvokeInitRuntime = (IsHandlerSet(() => UIInitialized)
-                                           || IsHandlerSet(() => Load)
-                                           || IsHandlerSet(() => UILoaded)
-                                           || IsHandlerSet(() => BeforeInstall)
-                                           || IsHandlerSet(() => AfterInstall)
-                                           || AlwaysScheduleInitRuntime);
+                                              || IsHandlerSet(() => Load)
+                                              || IsHandlerSet(() => UILoaded)
+                                              || IsHandlerSet(() => BeforeInstall)
+                                              || IsHandlerSet(() => AfterInstall)
+                                              || AlwaysScheduleInitRuntime);
                 if (needInvokeInitRuntime)
                     this.AddAction(new ManagedAction(dllEntry)
                     {
@@ -333,7 +334,7 @@ namespace WixSharp
                     if (AutoElements.EnableUACRevealer)
                         this.AddProperty(new Property("UAC_REVEALER_ENABLED", "true"));
 
-                    if (!AutoElements.UACWarning.IsEmpty())
+                    if (AutoElements.UACWarning.IsNotEmpty())
                         this.AddProperty(new Property("UAC_WARNING", AutoElements.UACWarning));
 
                     ManagedUI.BeforeBuild(this);
@@ -395,7 +396,7 @@ namespace WixSharp
         {
             try
             {
-                GetDialog(info, true);
+                GetDialog(info);
             }
             catch (Exception)
             {
@@ -407,24 +408,16 @@ namespace WixSharp
         static string GetDialogInfo(Type dialog)
         {
             var info = "{0}|{1}".FormatWith(
-                                dialog.Assembly.FullName,
-                                dialog.FullName);
+                                 dialog.Assembly.FullName,
+                                 dialog.FullName);
             return info;
         }
 
         internal static Type GetDialog(string info)
         {
-            return GetDialog(info, false);
-        }
-
-        internal static Type GetDialog(string info, bool validate)
-        {
             string[] parts = info.Split('|');
 
             var assembly = System.Reflection.Assembly.Load(parts[0]);
-
-            if (validate)
-                ProjectValidator.ValidateAssemblyCompatibility(assembly);
 
             return assembly.GetType(parts[1]);
         }
@@ -449,9 +442,9 @@ namespace WixSharp
             foreach (Delegate action in handlers.GetInvocationList())
             {
                 var handlerInfo = "{0}|{1}|{2}".FormatWith(
-                                     action.Method.DeclaringType.Assembly.FullName,
-                                     action.Method.DeclaringType.FullName,
-                                     action.Method.Name);
+                                                action.Method.DeclaringType.Assembly.FullName,
+                                                action.Method.DeclaringType.FullName,
+                                                action.Method.Name);
 
                 ValidateHandlerInfo(handlerInfo);
 
@@ -464,12 +457,20 @@ namespace WixSharp
         {
             string[] parts = info.Split('|');
 
-            var assembly = System.Reflection.Assembly.Load(parts[0]);
+            // Try to see if it's already loaded. `Assembly.Load(name)` still loads from the file
+            // if found. Even though the file-less (or renamed) assembly is loaded.
+            // Yep, it's not what one would expect.
+            //
+            // If not done this way it might locks the asm file, which in turn leads
+            // to the problems if host is a cs-script app.
+
+            var assembly = System.AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.FullName.StartsWith(parts[0]))
+                           ?? System.Reflection.Assembly.Load(parts[0]);
 
             Type type = null;
 
-            //Ideally need to iterate through the all types in order to find even private ones
-            //Though loading some internal (irrelevant) types can fail because of the dependencies.
+            // Ideally need to iterate through the all types in order to find even private ones
+            // Though loading some internal (irrelevant) types can fail because of the dependencies.
             try
             {
                 assembly.GetTypes().Single(t => t.FullName == parts[1]);

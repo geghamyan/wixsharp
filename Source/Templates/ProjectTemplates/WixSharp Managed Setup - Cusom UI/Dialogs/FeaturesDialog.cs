@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -36,8 +34,7 @@ namespace WixSharpSetup.Dialogs
 
         void FeaturesDialog_Load(object sender, System.EventArgs e)
         {
-            //Debug.Assert(false);
-            string drawTextOnlyProp = MsiRuntime.Session.Property("WixSharpUI_TreeNode_TexOnlyDrawing");
+            string drawTextOnlyProp = Runtime.Session.Property("WixSharpUI_TreeNode_TexOnlyDrawing");
 
             bool drawTextOnly = true;
 
@@ -48,16 +45,14 @@ namespace WixSharpSetup.Dialogs
             }
             else
             {
-                float dpi = this.CreateGraphics().DpiY;
+                float dpi = CreateGraphics().DpiY;
                 if (dpi == 96) // the checkbox custom drawing is only compatible with 96 DPI
                     drawTextOnly = false;
-                else
-                    drawTextOnly = true;
             }
 
             ReadOnlyTreeNode.Behavior.AttachTo(featuresTree, drawTextOnly);
 
-            banner.Image = MsiRuntime.Session.GetEmbeddedBitmap("WixUI_Bmp_Banner");
+            banner.Image = Runtime.Session.GetResourceBitmap("WixUI_Bmp_Banner");
             BuildFeaturesHierarchy();
 
             ResetLayout();
@@ -91,16 +86,16 @@ namespace WixSharpSetup.Dialogs
         /// <summary>
         /// The collection of the features selected by user as the features to be installed.
         /// </summary>
-        public static List<string> UserSelectedItems;
+        public static List<string> UserSelectedItems { get; private set; }
+
+        /// <summary>
+        /// The initial/default set of selected items (features) before user made any selection(s).
+        /// </summary>
+        public static List<string> InitialUserSelectedItems { get; private set; }
 
         void BuildFeaturesHierarchy()
         {
-            //Cannot use MsiRuntime.Session.Features (FeatureInfo collection).
-            //This WiX feature is just not implemented yet. All members except 'Name' throw InvalidHandeException
-            //Thus instead of using FeatureInfo just collect the names and query database for the rest of the properties.
-            string[] names = MsiRuntime.Session.Features.Select(x => x.Name).ToArray();
-
-            features = names.Select(name => new FeatureItem(MsiRuntime.Session, name)).ToArray();
+            features = Runtime.Session.Features;
 
             //build the hierarchy tree
             var rootItems = features.Where(x => x.ParentName.IsEmpty())
@@ -151,6 +146,11 @@ namespace WixSharpSetup.Dialogs
                      .Cast<TreeNode>()
                      .ForEach(node => featuresTree.Nodes.Add(node));
 
+            InitialUserSelectedItems = features.Where(x => x.IsViewChecked())
+                                               .Select(x => x.Name)
+                                               .OrderBy(x => x)
+                                               .ToList();
+
             isAutoCheckingActive = true;
         }
 
@@ -158,6 +158,7 @@ namespace WixSharpSetup.Dialogs
         {
             UserSelectedItems = features.Where(x => x.IsViewChecked())
                                         .Select(x => x.Name)
+                                        .OrderBy(x => x)
                                         .ToList();
         }
 
@@ -169,19 +170,29 @@ namespace WixSharpSetup.Dialogs
 
         void next_Click(object sender, System.EventArgs e)
         {
-            string itemsToInstall = features.Where(x => x.IsViewChecked())
-                                        .Select(x => x.Name)
-                                        .Join(",");
+            bool userChangedFeatures = UserSelectedItems?.JoinBy(",") != InitialUserSelectedItems.JoinBy(",");
 
-            string itemsToRemove = features.Where(x => !x.IsViewChecked())
-                                           .Select(x => x.Name)
-                                           .Join(",");
+            if (userChangedFeatures)
+            {
+                string itemsToInstall = features.Where(x => x.IsViewChecked())
+                                                .Select(x => x.Name)
+                                                .JoinBy(",");
 
-            if (itemsToRemove.Any())
-                MsiRuntime.Session["REMOVE"] = itemsToRemove;
+                string itemsToRemove = features.Where(x => !x.IsViewChecked())
+                                               .Select(x => x.Name)
+                                               .JoinBy(",");
 
-            if (itemsToInstall.Any())
-                MsiRuntime.Session["ADDLOCAL"] = itemsToInstall;
+                if (itemsToRemove.Any())
+                    Runtime.Session["REMOVE"] = itemsToRemove;
+
+                if (itemsToInstall.Any())
+                    Runtime.Session["ADDLOCAL"] = itemsToInstall;
+            }
+            else
+            {
+                Runtime.Session["REMOVE"] = "";
+                Runtime.Session["ADDLOCAL"] = "";
+            }
 
             SaveUserSelection();
             Shell.GoNext();
@@ -194,7 +205,7 @@ namespace WixSharpSetup.Dialogs
 
         void featuresTree_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            description.Text = e.Node.FeatureItem().Description.LocalizeWith(MsiRuntime.Localize);
+            description.Text = e.Node.FeatureItem().Description.LocalizeWith(Runtime.Localize);
         }
 
         bool isAutoCheckingActive = false;

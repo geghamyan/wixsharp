@@ -3,6 +3,11 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using WixSharp;
 using WixSharp.Forms;
+using WixSharpSetup;
+
+#error "DON'T FORGET to install NuGet package 'WixSharp' and remove this `#error` statement."
+// NuGet console: Install-Package WixSharp
+// NuGet Manager UI: browse tab
 
 namespace $safeprojectname$
 {
@@ -10,8 +15,6 @@ namespace $safeprojectname$
     {
         static void Main()
         {
-            DON'T FORGET to add NuGet package "WixSharp".
-            
             var project = new ManagedProject("MyProduct",
                              new Dir(@"%ProgramFiles%\My Company\My Product",
                                  new File("Program.cs")));

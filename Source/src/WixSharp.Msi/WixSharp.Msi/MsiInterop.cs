@@ -18,7 +18,61 @@ namespace WindowsInstaller
         UnknownProduct = 1605
     }
 
-    public enum MsiColInfoType : Int32
+    internal enum SummaryInformationStreamProperty : int
+    {
+        /// <summary>Codepage</summary>
+        Codepage = 1,
+
+        /// <summary>Title</summary>
+        Title = 2,
+
+        /// <summary>Subject</summary>
+        Subject = 3,
+
+        /// <summary>Author</summary>
+        Author = 4,
+
+        /// <summary>Keywords</summary>
+        Keywords = 5,
+
+        /// <summary>Comments</summary>
+        Comments = 6,
+
+        /// <summary>Template</summary>
+        Template = 7,
+
+        /// <summary>LastSavedBy</summary>
+        LastSavedBy = 8,
+
+        /// <summary>RevisionNumber</summary>
+        RevisionNumber = 9,
+
+        /// <summary>LastPrinted</summary>
+        LastPrinted = 11,
+
+        /// <summary>CreateTime</summary>
+        CreateTime = 12,
+
+        /// <summary>LastSaveTime</summary>
+        LastSaveTime = 13,
+
+        /// <summary>PageCount</summary>
+        PageCount = 14,
+
+        /// <summary>WordCount</summary>
+        WordCount = 15,
+
+        /// <summary>CharacterCount</summary>
+        CharacterCount = 16,
+
+        /// <summary>CreatingApplication</summary>
+        CreatingApplication = 18,
+
+        /// <summary>Security</summary>
+        Security = 19,
+    }
+
+    public enum MsiColInfoType
     {
         Names = 0,
     }
@@ -26,6 +80,12 @@ namespace WindowsInstaller
     public enum MsiDbPersistMode
     {
         ReadOnly = 0,
+        ReadWrite = 1,
+    }
+
+    public enum MsiModifyMode
+    {
+        ModifyAssign = 3
     }
 
     [Flags]
@@ -65,13 +125,14 @@ namespace WindowsInstaller
         ShowDialog = 0x0e000000,
     }
 
+    [Flags]
     public enum MsiInstallUILevel : UInt32
     {
         None = 2,
         SourceResOnly = 0x100,
     }
 
-    public enum MsiLogAttribute : Int32
+    public enum MsiLogAttribute
     {
         FlushEachLine = (1 << 1),
     }
@@ -103,7 +164,13 @@ namespace WindowsInstaller
         extern static public MsiError MsiDatabaseOpenView(IntPtr database, string query, out IntPtr view);
 
         [DllImport("msi", CharSet = CharSet.Auto)]
+        extern static public IntPtr MsiCreateRecord(uint numOfFields);
+
+        [DllImport("msi", CharSet = CharSet.Auto)]
         extern static public MsiError MsiOpenDatabase(string path, MsiDbPersistMode mode, out IntPtr handle);
+
+        [DllImport("msi", CharSet = CharSet.Auto)]
+        extern static public MsiError MsiDatabaseCommit(IntPtr database);
 
         [DllImport("msi")]
         extern static public MsiError MsiCloseHandle(IntPtr handle);
@@ -119,6 +186,15 @@ namespace WindowsInstaller
 
         [DllImport("msi", CharSet = CharSet.Auto)]
         extern static public MsiError MsiRecordGetString(IntPtr record, UInt32 field, StringBuilder value, ref UInt32 valueSize);
+
+        [DllImport("msi", CharSet = CharSet.Auto)]
+        extern static public MsiError MsiRecordSetString(IntPtr record, uint field, string value);
+
+        [DllImport("msi", CharSet = CharSet.Auto)]
+        extern static public MsiError MsiViewModify(IntPtr view, MsiModifyMode modifyMode, IntPtr record);
+
+        [DllImport("msi", CharSet = CharSet.Auto)]
+        extern static public MsiError MsiRecordSetStream(IntPtr record, uint field, string filePath);
 
         [DllImport("msi", CharSet = CharSet.Auto)]
         extern static public MsiError MsiViewClose(IntPtr view);

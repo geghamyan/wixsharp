@@ -35,6 +35,7 @@ public class Script
                               PasswordNeverExpires = true,
                               CreateUser = true
                           },
+                          new Binary("CUSTOM_LNG".ToId(), @"C:\Program Files (x86)\WiX Toolset v3.11\SDK\wixui\WixUI_fi-FI.wxl"),
                           new Property("PASSWORD", "pwd123") { IsDeferred = true });
 
         project.SourceBaseDir = @"..\..\";
@@ -72,7 +73,7 @@ public class Script
 
         //e.ManagedUIShell.SetSize(700, 500);
         //e.ManagedUIShell.OnCurrentDialogChanged += ManagedUIShell_OnCurrentDialogChanged;
-        //(e.ManagedUIShell.CurrentDialog asForm).Controls....
+        //(e.ManagedUIShell.CurrentDialog as Form).Controls....
     }
 
     //private static void ManagedUIShell_OnCurrentDialogChanged(IManagedDialog dialog)

@@ -36,6 +36,185 @@ namespace WixSharp
     }
 
     /// <summary>
+    /// Equivalent of https://wixtoolset.org/documentation/manual/v3/xsd/wix/permission.html
+    /// </summary>
+    public class Permission : WixObject
+    {
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Append;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? ChangePermission;
+
+        /// <summary>
+        /// For a directory, the right to create a subdirectory. Only valid under a 'CreateFolder' parent.
+        /// </summary>
+        [Xml]
+        public bool? CreateChild;
+
+        /// <summary>
+        /// For a directory, the right to create a file in the directory. Only valid under a 'CreateFolder' parent.
+        /// </summary>
+        [Xml]
+        public bool? CreateFile;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? CreateLink;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? CreateSubkeys;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Delete;
+
+        /// <summary>
+        /// For a directory, the right to delete a directory and all the files it contains, including read-only files. Only valid under a 'CreateFolder' parent.
+        /// </summary>
+        [Xml]
+        public bool? DeleteChild;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public string Domain;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? EnumerateSubkeys;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Execute;
+
+        /// <summary>
+        /// Bit mask for FILE_ALL_ACCESS from WinNT.h (0x001F01FF).
+        /// </summary>
+        [Xml]
+        public bool? FileAllRights;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? GenericAll;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        public bool? GenericExecute;
+
+        /// <summary>
+        /// specifying this will fail to grant read access
+        /// </summary>
+        [Xml]
+        public bool? GenericRead;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? GenericWrite;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Notify;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Read;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? ReadAttributes;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? ReadExtendedAttributes;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? ReadPermission;
+
+        /// <summary>
+        /// Bit mask for SPECIFIC_RIGHTS_ALL from WinNT.h (0x0000FFFF).
+        /// </summary>
+        [Xml]
+        public bool? SpecificRightsAll;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Synchronize;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? TakeOwnership;
+
+        /// <summary>
+        /// For a directory, the right to traverse the directory. By default, users are assigned the BYPASS_TRAVERSE_CHECKING privilege, which ignores the FILE_TRAVERSE access right. Only valid under a 'CreateFolder' parent.
+        /// </summary>
+        [Xml]
+        public bool? Traverse;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public string User;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? Write;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? WriteAttributes;
+
+        /// <summary>
+        /// The documentation is unavailable on WiX
+        /// </summary>
+        [Xml]
+        public bool? WriteExtendedAttributes;
+    }
+
+    /// <summary>
     /// Represents applying permission(s) to the containing File entity
     /// </summary>
     /// <remarks>
@@ -43,6 +222,13 @@ namespace WixSharp
     /// </remarks>
     public class DirPermission : WixEntity
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DirPermission"/> class.
+        /// </summary>
+        public DirPermission()
+        {
+        }
+
         /// <summary>
         /// Creates a FilePermission instance for <paramref name="user"/>.
         /// <para>Note that <see cref="DirPermission"/> inherits its parent <see cref="Dir"/> features unless

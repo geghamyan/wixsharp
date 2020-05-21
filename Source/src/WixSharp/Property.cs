@@ -192,6 +192,16 @@ namespace WixSharp
         public bool IsDeferred = false;
 
         /// <summary>
+        /// Denotes that the Property is not logged during installation. See the MsiHiddenProperties Property for more information.
+        /// </summary>
+        public bool? Hidden;
+
+        /// <summary>
+        /// The flag indicating if the property can be passed to the server side when doing a managed installation with elevated privileges.
+        /// </summary>
+        public bool? Secure;
+
+        /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.
         /// </summary>
         /// <returns>
@@ -200,6 +210,46 @@ namespace WixSharp
         public override string ToString()
         {
             return Name;
+        }
+    }
+
+    /// <summary>
+    /// Public properties are exposed on the msiexec commandline and can be overridden
+    /// i.e. msiexec /i myProduct.msi MYPROPERTY=true
+    /// They must be upper-case as this is part of the msi specification.
+    /// </summary>
+    public class PublicProperty : Property
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PublicProperty"/> class with properties/fields initialized with specified parameters.
+        /// </summary>
+        /// <param name="name">The name of the property.</param>
+        /// <param name="value">The initial value of the property.</param>
+        public PublicProperty(string name, string value)
+        {
+            CheckName(name);
+            Name = name;
+            Value = value;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PublicProperty"/> class with properties/fields initialized with specified parameters.
+        /// </summary>
+        /// <param name="id">The explicit <see cref="Id"></see> to be associated with <see cref="PublicProperty"/> instance.</param>
+        /// <param name="name">The name of the property.</param>
+        /// <param name="value">The initial value of the property.</param>
+        public PublicProperty(Id id, string name, string value) : this(name, value)
+        {
+            Id = id.Value;
+        }
+
+        private void CheckName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                throw new System.ArgumentException("Public property name cannot be null or empty");
+
+            if (name.ToUpperInvariant() != name)
+                throw new System.ArgumentException("Public property names must be uppercase");
         }
     }
 }

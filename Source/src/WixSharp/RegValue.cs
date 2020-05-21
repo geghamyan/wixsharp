@@ -32,7 +32,7 @@ namespace WixSharp
     /// <summary>
     /// Values of this type represent possible registry roots.
     /// </summary>
-    /// <seealso cref="WixSharp.StringEnum{WixSharp.RegistryHive}" />
+    /// <seealso cref="WixSharp.StringEnum{T}" />
     public class RegistryHive : StringEnum<RegistryHive>
     {
         /// <summary>
@@ -41,17 +41,33 @@ namespace WixSharp
         /// <param name="value">The value.</param>
         public RegistryHive(string value) : base(value) { }
 
-        public static RegistryHive ClassesRoot = new RegistryHive("HKCR");
-        public static RegistryHive CurrentUser = new RegistryHive("HKCU");
-        public static RegistryHive LocalMachine = new RegistryHive("HKLM");
-        public static RegistryHive Users = new RegistryHive("HKU");
         /// <summary>
-        /// Defines ”HKMU” value, which makes it so the registry entry will appear in HKLM 
-        /// when a per-machine install is run and in HKCU when a per-user install us run. 
+        /// The classes root. Equivalent of `HKCR`.
+        /// </summary>
+        public static RegistryHive ClassesRoot = new RegistryHive("HKCR");
+
+        /// <summary>
+        /// The current user.  Equivalent of `HKCU`.
+        /// </summary>
+        public static RegistryHive CurrentUser = new RegistryHive("HKCU");
+
+        /// <summary>
+        /// The local machine.  Equivalent of `HKLM`.
+        /// </summary>
+        public static RegistryHive LocalMachine = new RegistryHive("HKLM");
+
+        /// <summary>
+        /// The users.  Equivalent of `HKU`.
+        /// </summary>
+        public static RegistryHive Users = new RegistryHive("HKU");
+
+        /// <summary>
+        /// Defines ”HKMU” value, which makes it so the registry entry will appear in HKLM
+        /// when a per-machine install is run and in HKCU when a per-user install us run.
         /// </summary>
         public static RegistryHive LocalMachineOrUsers = new RegistryHive("HKMU");
-
     }
+
     /// <summary>
     /// Defines the registry file (*.reg) containing the entries to be installed.
     /// <para>
@@ -72,7 +88,7 @@ namespace WixSharp
     /// Compiler.BuildMsi(project);
     /// </code>
     /// </example>
-    public partial class RegFile : WixObject
+    public class RegFile : WixObject
     {
         /// <summary>
         /// The path to the registry file (*.reg).
@@ -127,12 +143,23 @@ namespace WixSharp
     /// }
     /// </code>
     /// </example>
-    public partial class RegValue : WixEntity
+    public class RegValue : WixEntity
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="RegValue"/> class.
         /// </summary>
         public RegValue() { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RegValue"/> class with properties initialized with specified parameters.
+        /// </summary>
+        /// <param name="name">The registry entry name.</param>
+        /// <param name="value">The registry entry value.</param>
+        public RegValue(string name, object value)
+        {
+            Name = name;
+            Value = value;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RegValue"/> class with properties initialized with specified parameters.
@@ -248,6 +275,11 @@ namespace WixSharp
         public object Value = null;
 
         /// <summary>
+        /// The permissions associated with the registry value
+        /// </summary>
+        public Permission[] Permissions = null;
+
+        /// <summary>
         /// Defines the installation <see cref="Condition"/>, which is to be checked during the installation to
         /// determine if the registry value should be created on the target system.
         /// </summary>
@@ -284,20 +316,9 @@ namespace WixSharp
         /// </value>
         public bool? NeverOverwrite
         {
-            get
-            {
-                if (attributesBag.ContainsKey("Component:NeverOverwrite"))
-                    return (attributesBag["Component:NeverOverwrite"] == "yes");
-                else
-                    return null;
-            }
-            set
-            {
-                if (value.HasValue)
-                    attributesBag["Component:NeverOverwrite"] = value.Value.ToYesNo();
-                else if (attributesBag.ContainsKey("Component:NeverOverwrite"))
-                    attributesBag.Remove("Component:NeverOverwrite");
-            }
+            get => attributesBag.Get("Component:NeverOverwrite") == "yes";
+
+            set => attributesBag.Set("Component:NeverOverwrite", value.ToNullOrYesNo());
         }
 
         internal string RegValueString
@@ -316,10 +337,21 @@ namespace WixSharp
             }
         }
 
+        /// <summary>
+        /// Gets or sets the type.
+        /// </summary>
+        /// <value>
+        /// The type.
+        /// </value>
+        public string Type { get; set; }
+
         internal string RegTypeString
         {
             get
             {
+                if (Type != null)
+                    return Type;
+
                 if (Value is String)
                 {
                     var value = Value as string;

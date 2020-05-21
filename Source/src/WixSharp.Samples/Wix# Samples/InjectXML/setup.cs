@@ -10,7 +10,7 @@ using WixSharp.CommonTasks;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var project =
             new Project("MyProduct",
@@ -44,18 +44,22 @@ class Script
         // project specific build event
         project.WixSourceGenerated += InjectImages;
 
+        project.AddXml("Wix/Product", "<Property Id=\"Title\" Value=\"Properties Test\" />");
+
+        project.AddXmlElement("Wix/Product", "Property", "Id=Gritting; Value=Hello World!");
+
         project.Media.Clear(); // clear default media as we will add it via MediaTemplate
         project.WixSourceGenerated += document =>
         {
-            document.Root.Select("Product")
-                         .AddElement("MediaTemplate", "CabinetTemplate=cab{0}.cab; CompressionLevel=mszip");
+            document.Select("Wix/Product")
+                    .AddElement("MediaTemplate", "CabinetTemplate=cab{0}.cab; CompressionLevel=mszip");
         };
 
         // global build event
         Compiler.WixSourceGenerated += document =>
             {
-                document.Root.Select("Product/Package")
-                             .SetAttributeValue("Platform", "x64");
+                document.Select("Wix/Product/Package")
+                        .SetAttributeValue("Platform", "x64");
 
                 document.FindAll("Component")
                         .ForEach(e => e.SetAttributeValue("Win64", "yes"));
@@ -71,7 +75,7 @@ class Script
         project.BuildMsi();
     }
 
-    static void InjectImages(System.Xml.Linq.XDocument document)
+    private static void InjectImages(System.Xml.Linq.XDocument document)
     {
         var productElement = document.Root.Select("Product");
 

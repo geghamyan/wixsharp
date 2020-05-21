@@ -33,7 +33,7 @@ namespace WixSharp.Bootstrapper
         {
             AppAssembly = appAssembly;
             Payloads = Payloads.Combine(AppAssembly.ToPayload())
-                               .Combine(dependencies.Select(x=>x.ToPayload()));
+                               .Combine(dependencies.Select(x => x.ToPayload()));
         }
 
         /// <summary>
@@ -64,16 +64,33 @@ namespace WixSharp.Bootstrapper
                 bootstrapperCoreConfig = Path.Combine(outDir, "BootstrapperCore.config");
 
                 sys.File.WriteAllText(bootstrapperCoreConfig,
-                                      DefaultBootstrapperCoreConfigContent.Replace("{asmName}",asmName));
+                                      DefaultBootstrapperCoreConfigContent.Replace("{asmName}", asmName));
 
                 Compiler.TempFiles.Add(bootstrapperCoreConfig);
             }
+
+            // WiX does not check the validity of the BootstrapperCore.config so we need to do it
+            try
+            {
+                var expectedAssemblyName = XDocument.Load(bootstrapperCoreConfig)
+                                                    .FindFirst("host")
+                                                    .Attribute("assemblyName")
+                                                    .Value;
+
+                if (asmName != expectedAssemblyName)
+                {
+                    Compiler.OutputWriteLine(
+                        $"WARNING: It looks like your configured BA assembly name (<host assemblyName=\"{expectedAssemblyName}\">) " +
+                        $"from `BootstrapperCore.config` file is not matching the actual assembly name (\"{asmName}\").");
+                }
+            }
+            catch { }
         }
 
         /// <summary>
         /// The default content of the BootstrapperCore.config file. It is used in the cases when the custom config file was not specified
-        /// in <see cref="ManagedBootstrapperApplication"/> constructor. 
-        /// <para>BootstrapperCore.config is very important as its content can affect both bootstrapper build outcome and the 
+        /// in <see cref="ManagedBootstrapperApplication"/> constructor.
+        /// <para>BootstrapperCore.config is very important as its content can affect both bootstrapper build outcome and the
         /// runtime behaviour.</para>
         /// <para>See these discussions: </para>
         /// <para>  - https://github.com/oleg-shilo/wixsharp/issues/416 </para>
@@ -98,7 +115,7 @@ namespace WixSharp.Bootstrapper
         </host>
     </wix.bootstrapper>
 </configuration>
-"; 
+";
 
         /// <summary>
         /// Emits WiX XML.
@@ -130,6 +147,12 @@ namespace WixSharp.Bootstrapper
         /// <para>This ID is used by the application to detect the presence of the package on the target system
         /// and trigger either install or uninstall action.</para>
         /// <para>If it is not set then it is the Id of the last package in th bundle.</para>
+        /// <para>The purpose of this property to express what package in the multi-package bundle represents
+        /// the product. A typical use-case of this is a scenario when bundle contains prerequisite packages
+        /// (e.g. runtime dependencies, third party editors) and the product msi. Thus regardless of the
+        /// prerequisite presence the bundle should be considered as installed only if the product msi is installed.
+        /// Otherwise the bundle is not installed even though some of the prerequisites can be present on the
+        /// target system (e.g. installed individually or by other products).</para>
         /// </summary>
         /// <value>
         /// The primary package identifier.
@@ -177,43 +200,43 @@ namespace WixSharp.Bootstrapper
         /// If set to "true", WixStdBA will launch the application specified by the LaunchTarget attribute with the SW_HIDE flag. This attribute is ignored when the LaunchTargetElevatedId attribute is specified.
         /// </summary>
         [Xml]
-        bool? LaunchHidden;
+        public bool? LaunchHidden;
 
         /// <summary>
         /// If set to "true", WixStdBA will show a page allowing the user to restart applications when files are in use.
         /// </summary>
         [Xml]
-        bool? ShowFilesInUse;
+        public bool? ShowFilesInUse;
 
         /// <summary>
         /// If set to "true", the application version will be displayed on the UI.
         /// </summary>
         [Xml]
-        bool? ShowVersion;
+        public bool? ShowVersion;
 
         /// <summary>
         /// If set to "true", the bundle can be pre-cached using the /cache command line argument.
         /// </summary>
         [Xml]
-        bool? SupportCacheOnly;
+        public bool? SupportCacheOnly;
 
         /// <summary>
         /// If set to "true", attempting to installer a downgraded version of a bundle will be treated as a successful do-nothing operation. The default behavior (or when explicitly set to "false") is to treat downgrade attempts as failures.
         /// </summary>
         [Xml]
-        bool? SuppressDowngradeFailure;
+        public bool? SuppressDowngradeFailure;
 
         /// <summary>
         /// If set to "true", the Options button will not be shown and the user will not be able to choose an installation directory.
         /// </summary>
         [Xml]
-        bool? SuppressOptionsUI;
+        public bool? SuppressOptionsUI;
 
         /// <summary>
         /// If set to "true", the Repair button will not be shown in the maintenance-mode UI.
         /// </summary>
         [Xml]
-        bool? SuppressRepair;
+        public bool? SuppressRepair;
 
         /// <summary>
         /// Source file of the theme XML.
@@ -274,6 +297,57 @@ namespace WixSharp.Bootstrapper
         /// </code>
         /// </example>
         public Variable[] Variables = new Variable[0];
+    }
+
+    /// <summary>
+    /// Describes a remote payload to a bootstrapper.
+    /// <para>Describes information about a remote file payload that is not
+    /// available at the time of building the bundle. The parent must specify DownloadUrl
+    /// and must not specify SourceFile when using this element.</para></summary>
+    /// <seealso cref="WixSharp.WixEntity" />
+    public class RemotePayload : WixEntity
+    {
+        /// <summary>
+        /// Description of the file from version resources.
+        /// </summary>
+        [Xml]
+        public string Description;
+
+        /// <summary>
+        /// Public key of the authenticode certificate used to sign the RemotePayload.Include this attribute if the remote file is signed.
+        /// </summary>
+        [Xml]
+        public string CertificatePublicKey;
+
+        /// <summary>
+        /// Thumbprint of the authenticode certificate used to sign the RemotePayload.Include this attribute if the remote file is signed.
+        /// </summary>
+        [Xml]
+        public string CertificateThumbprint;
+
+        /// <summary>
+        /// SHA-1 hash of the RemotePayload.Include this attribute if the remote file is unsigned or SuppressSignatureVerification is set to Yes.
+        /// </summary>
+        [Xml]
+        public string Hash;
+
+        /// <summary>
+        /// Product name of the file from version resources.
+        /// </summary>
+        [Xml]
+        public string ProductName;
+
+        /// <summary>
+        /// Size of the remote file in bytes.
+        /// </summary>
+        [Xml]
+        public int Size;
+
+        /// <summary>
+        /// Version of the remote file
+        /// </summary>
+        [Xml]
+        public Version Version;
     }
 
     /// <summary>
@@ -388,7 +462,9 @@ namespace WixSharp.Bootstrapper
         /// <returns></returns>
         public override XContainer[] ToXml()
         {
-            XNamespace bal = "http://schemas.microsoft.com/wix/BalExtension";
+            XNamespace bal = Compiler.IsWix4 ?
+                                "http://wixtoolset.org/schemas/v4/wxs/bal" :
+                                "http://schemas.microsoft.com/wix/BalExtension";
 
             var root = new XElement("BootstrapperApplicationRef");
 

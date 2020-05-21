@@ -9,7 +9,7 @@ using WixSharp.CommonTasks;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         //Note that if the install condition for the component can be set without interacting with user (e.g. analyzing registry)
         //as part InstallExecuteSequence. However if interaction is required (e.g. message box, checkbox) install condition should
@@ -23,7 +23,7 @@ class Script
                             new FileShortcut("MyApp") { WorkingDirectory = "[INSTALL_DIR]" }),
                         new ExeFileShortcut("Uninstall MyApp", "[System64Folder]msiexec.exe", "/x [ProductCode]")),
 
-                    new Dir(@"%ProgramMenu%\My Company\1My Product",
+                    new Dir(@"%ProgramMenu%\My Company\My Product",
                         new ExeFileShortcut("Uninstall MyApp", "[System64Folder]msiexec.exe", "/x [ProductCode]"),
                         new ExeFileShortcut("MyApp", "[INSTALL_DIR]MyApp.exe", arguments: "")),
 

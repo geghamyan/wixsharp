@@ -39,9 +39,6 @@ using Microsoft.Deployment.WindowsInstaller;
 using WixSharp.CommonTasks;
 using IO = System.IO;
 
-//WIX References:
-//http://www.wixwiki.com/index.php?title=Main_Page
-
 namespace WixSharp
 {
 
@@ -54,7 +51,7 @@ namespace WixSharp
         /// <summary>
         /// The ID of the root directory, which is automatically assigned to the first directory of the project directories.
         /// <para>
-        /// The default value "INSTALLDIR" has special meaning as apart from being a traditional choice of the id for the root 
+        /// The default value "INSTALLDIR" has special meaning as apart from being a traditional choice of the id for the root
         /// directory it is also used in binding root directory to the textbox of the <c>InstallDirDialog</c>.
         /// </para>
         /// <para>
@@ -118,6 +115,30 @@ namespace WixSharp
         /// Force Component ID uniqueness.
         /// </summary>
         public bool ForceComponentIdUniqueness = false;
+
+        /// <summary>
+        /// The ignore empty directories during wild card resolution
+        /// </summary>
+        public bool IgnoreWildCardEmptyDirectories = false;
+
+        /// <summary>
+        /// Enable validating CA assemblies for all CA methods to be public instance method.
+        /// <para>
+        /// By default validation is performed in a temporary AppDomain (`CAValidation.InRemoteAppDomain`)
+        /// as it is the only way to avoid locking the assembly being validated. Unfortunately
+        /// `ReflectionOnlyLoadFrom` is incompatible with this task as it does not allow browsing members
+        /// attributes.
+        /// </para>
+        /// <para>
+        /// You may need to disable (`CAValidation.Disabled`) the validation if WixSharp is hosted on the
+        /// runtime that does not support AppDomain unloading (e.g. .NET Core)</para>
+        /// <para>
+        /// If you want to perform validation without the use of temporary AppDomain you can chose the
+        /// `CAValidation.InCurrentAppDomain` option. In this case the assembly being validated is loaded in
+        /// the current AppDomain but from the memory without locking the assembly file. This option is valid
+        /// but not recommended as it may lead to the unpredictable reflection scenarios. </para>
+        /// </summary>
+        public CAValidation ValidateCAAssemblies = CAValidation.InRemoteAppDomain;
 
         /// <summary>
         /// The suppress generation of the XML attribute 'id' for <see cref="Bootstrapper.Payload"/> undefined ids
@@ -214,7 +235,7 @@ namespace WixSharp
     /// <code>
     /// var project = new Project();
     /// ...
-    /// Compiler.BuildWxsCmd(project);
+    /// Compiler.BuildMsiCmd(project);
     /// </code>
     /// </description>
     /// </item>
@@ -320,7 +341,14 @@ namespace WixSharp
                     }
                 }
             }
-            catch { }
+            catch
+            {
+                // No need to do anything.
+                // The whole purpose of EnsureVSIntegration is pure cosmetic - just to let user to access "*.g.wsx"
+                // file from Visual Studio. There is a high chance of failure as the method depends on the project
+                // file undocumented structure, which is subject to change by the third party(MS).
+                // Even a complete failure of EnsureVSIntegration does not affect the MSI authoring outcome.
+            }
         }
 
 
@@ -451,10 +479,6 @@ namespace WixSharp
         static public string BuildMsi(Project project)
         {
             //Debugger.Launch();
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
             return Build(project, OutputType.MSI);
         }
 
@@ -480,10 +504,6 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         static public string BuildMsiCmd(Project project)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
 
             string cmdFile = IO.Path.GetFullPath(IO.Path.Combine(project.OutDir, "Build_" + project.OutFileName) + ".cmd");
 
@@ -502,16 +522,13 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         static public string BuildMsmCmd(Project project)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             string cmdFile = IO.Path.GetFullPath(IO.Path.Combine(project.OutDir, "Build_" + project.OutFileName) + ".cmd");
 
             if (IO.File.Exists(cmdFile))
                 IO.File.Delete(cmdFile);
+
             BuildMsmCmd(project, cmdFile);
+
             return cmdFile;
         }
 
@@ -524,9 +541,6 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         static public string BuildMsiCmd(Project project, string path)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
                 ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
             BuildCmd(project, path, OutputType.MSI);
             return path;
@@ -542,10 +556,6 @@ namespace WixSharp
         /// <returns>Path to the batch file.</returns>
         static public string BuildMsmCmd(Project project, string path)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
             BuildCmd(project, path, OutputType.MSM);
             return path;
         }
@@ -553,10 +563,6 @@ namespace WixSharp
         static void BuildCmd(Project project, string path, OutputType type)
         {
             path = path.ExpandEnvVars();
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
 
             string wixLocationEnvVar = $"set WixLocation={WixLocation}";
             string compiler = Utils.PathCombine(WixLocation, "candle.exe");
@@ -604,14 +610,7 @@ namespace WixSharp
         /// <returns>Path to the built MSI file.</returns>
         static public string BuildMsi(Project project, string path)
         {
-            path = path.ExpandEnvVars();
-
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-            Build(project, path, OutputType.MSI);
-            return path;
+            return Build(project, path.ExpandEnvVars(), OutputType.MSI);
         }
 
         /// <summary>
@@ -621,10 +620,6 @@ namespace WixSharp
         /// <returns>Path to the built MSM file. Returns <c>null</c> if <c>msm</c> cannot be built.</returns>
         static public string BuildMsm(Project project)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
             return Build(project, OutputType.MSM);
         }
 
@@ -636,15 +631,7 @@ namespace WixSharp
         /// <returns>Path to the built MSM file.</returns>
         static public string BuildMsm(Project project, string path)
         {
-            path = path.ExpandEnvVars();
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
-            Build(project, path, OutputType.MSM);
-
-            return path;
+            return Build(project, path.ExpandEnvVars(), OutputType.MSM);
         }
 
         /// <summary>
@@ -694,14 +681,12 @@ namespace WixSharp
             extensionDlls = project.WixExtensions
                                    .Select(x => x.ExpandEnvVars())
                                    .Distinct()
-                                   .Join(" ", dll => " -ext \"" + dll + "\"");
+                                   .JoinBy(" ", dll => " -ext \"" + dll + "\"");
 
             string wxsFiles = project.WxsFiles
                                      .Select(x => x.ExpandEnvVars())
                                      .Distinct()
-                                     .Join(" ", file => "\"" + file + "\"");
-
-
+                                     .JoinBy(" ", file => "\"" + file + "\"");
 
             var candleOptions = CandleOptions + " " + project.CandleOptions;
 
@@ -730,11 +715,11 @@ namespace WixSharp
 
             string libFiles = project.LibFiles
                                      .Distinct()
-                                     .Join(" ", x => x.Enquote());
+                                     .JoinBy(" ", x => x.Enquote());
 
             string fragmentObjectFiles = project.WxsFiles
                                                 .Distinct()
-                                                .Join(" ", file => "\"" + outDir.PathCombine(IO.Path.GetFileNameWithoutExtension(file)) + ".wixobj\"");
+                                                .JoinBy(" ", file => "\"" + outDir.PathCombine(IO.Path.GetFileNameWithoutExtension(file)) + ".wixobj\"");
 
             var lightCmdLineParams = new StringBuilder();
 
@@ -753,7 +738,7 @@ namespace WixSharp
             return lightCmdLineParams.ToString().ExpandEnvVars();
         }
 
-        static void Build(Project project, string path, OutputType type)
+        static string Build(Project project, string path, OutputType type)
         {
             path = path.ExpandEnvVars();
             if (path.IsNotEmpty())
@@ -868,6 +853,8 @@ namespace WixSharp
             {
                 Environment.CurrentDirectory = oldCurrDir;
             }
+
+            return path;
         }
 
         /// <summary>
@@ -877,11 +864,6 @@ namespace WixSharp
         /// <returns>Path to the built WXS file.</returns>
         public static string BuildWxs(Project project)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             return BuildWxs(project, OutputType.MSI);
         }
 
@@ -893,11 +875,6 @@ namespace WixSharp
         /// <returns>Path to the built WXS file.</returns>
         public static string BuildWxs(Project project, OutputType type)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             lock (AutoGeneration.WxsGenerationSynchObject)
             {
                 var oldAlgorithm = AutoGeneration.CustomIdAlgorithm;
@@ -933,11 +910,10 @@ namespace WixSharp
         /// <returns>Path to the built WXS file.</returns>
         public static string BuildWxs(Project project, string path, OutputType type)
         {
-            //very important to keep "ClientAssembly = " in all "public Build*" methods to ensure GetCallingAssembly
-            //returns the build script assembly but not just another method of Compiler.
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
+            if (Compiler.ClientAssembly.IsEmpty())
+            {
+                Compiler.ClientAssembly = Compiler.FindClientAssemblyInCallStack();
+            }
             XDocument doc = GenerateWixProj(project);
 
             IndjectCustomUI(project.CustomUI, doc);
@@ -1179,8 +1155,9 @@ namespace WixSharp
                    .SetAttribute("Version", project.Version)
                    .SetAttribute("UpgradeCode", project.UpgradeCode);
 
-            if (project.ControlPanelInfo != null && project.ControlPanelInfo.Manufacturer.IsNotEmpty())
+            if (project.ControlPanelInfo.Manufacturer.IsNotEmpty())
                 product.SetAttribute("Manufacturer", project.ControlPanelInfo.Manufacturer);
+
             product.AddAttributes(project.Attributes);
 
             XElement package = product.Select("Package");
@@ -1188,9 +1165,11 @@ namespace WixSharp
             package.SetAttribute("Description", project.Description)
                    .SetAttribute("Platform", project.Platform)
                    .SetAttribute("SummaryCodepage", project.Codepage)
-                   .SetAttribute("Languages", project.Language.ToLcidList())
                    .SetAttribute("InstallPrivileges", project.InstallPrivileges)
                    .SetAttribute("InstallScope", project.InstallScope);
+
+            if (!project.SuppressSettingPackageLanguages)
+                package.SetAttribute("Languages", project.Language.ToLcidList());
 
             if (project.EmitConsistentPackageId)
                 package.CopyAttributeFrom(product, "Id");
@@ -1214,7 +1193,6 @@ namespace WixSharp
 
             ProcessDirectories(project, featureComponents, defaultFeatureComponents, autoGeneratedComponents, dirs);
             ProcessRegKeys(project, featureComponents, defaultFeatureComponents, product);
-            ProcessUrlReservations(project, featureComponents, defaultFeatureComponents, product);
             ProcessProperties(project, product, featureComponents);
             ProcessCustomActions(project, product);
 
@@ -1622,7 +1600,13 @@ namespace WixSharp
             {
                 var existingCompElement = dirItem.Elements("Component");
 
-                if (existingCompElement.Count() == 0 && AutoElements.SupportEmptyDirectories == CompilerSupportState.Enabled)
+                // experimenting revealed that `AutoElements.SupportEmptyDirectories != CompilerSupportState.Disabled`
+                // may lead to empty folders remaining after uninstall in case of `CompilerSupportState.Auto`.
+                // The actual cause is not entirely clear but changing the code to `AutoElements.SupportEmptyDirectories == CompilerSupportState.Enabled`
+                // addresses the issue. Though, in turn, effectively disables auto mode and requires explicit declaration
+                // of `AutoElements.SupportEmptyDirectories = CompilerSupportState.Enabled` for empty dir scenarios.
+                // Restoring the original approach for now... (15/09/2018)
+                if (existingCompElement.Count() == 0 && AutoElements.SupportEmptyDirectories != CompilerSupportState.Disabled)
                 {
                     string compId = wDir.GenerateComponentId(wProject, ".EmptyDirectory");
 
@@ -1685,7 +1669,6 @@ namespace WixSharp
                 InsertIISElements(dirItem, comp, wDir.IISVirtualDirs, wProject);
             }
         }
-
         static void ProcessDirectoryFiles(Dir wDir, Project wProject, Dictionary<Feature, List<string>> featureComponents, List<string> defaultFeatureComponents, XElement dirItem)
         {
             //insert files in the last leaf directory node
@@ -1734,8 +1717,15 @@ namespace WixSharp
                         .SetAttribute("FontTitle", font.FontTitle);
                 }
 
-                if (wFile.ServiceInstaller != null)
-                    comp.Add(wFile.ServiceInstaller.ToXml(wProject));
+                var context = new ProcessingContext
+                {
+                    Project = wProject,
+                    Parent = wFile,
+                    XParent = comp,
+                    FeatureComponents = featureComponents
+                };
+
+                wFile.ServiceInstaller?.Process(context);
 
                 if (wFile is Assembly && (wFile as Assembly).RegisterInGAC)
                 {
@@ -1834,6 +1824,7 @@ namespace WixSharp
                             new XAttribute("Name", wShortcut.Name.IsNullOrEmpty() ? IO.Path.GetFileNameWithoutExtension(wFile.Name) : wShortcut.Name + ".lnk"));
 
                     wShortcut.EmitAttributes(shortcutElement);
+                    wShortcut.EmitShortcutProperties(shortcutElement);
 
                     file.Add(shortcutElement);
                 }
@@ -1881,11 +1872,12 @@ namespace WixSharp
                        new XAttribute("Id", wDir.Id + "." + wShortcut.Id),
                        //new XAttribute("Directory", wDir.Id), //not needed for Wix# as this attributed is required only if the shortcut is not nested under a Component element.
                        new XAttribute("WorkingDirectory", workingDir),
-                       new XAttribute("Target", wShortcut.Target),
+                       new XAttribute("Target", wShortcut.Target.NormalizeWixString()),
                        new XAttribute("Arguments", wShortcut.Arguments),
                        new XAttribute("Name", wShortcut.Name + ".lnk")));
 
                 wShortcut.EmitAttributes(sc);
+                wShortcut.EmitShortcutProperties(sc);
             }
         }
 
@@ -1959,7 +1951,7 @@ namespace WixSharp
                     }
                     else
                     {
-                        // since permissions belong to the directory 
+                        // since permissions belong to the directory
                         // it makes sense to use the parent features if the has not its own features set
                         if (wDir.ActualFeatures.Any())
                             featureComponents.Map(wDir.ActualFeatures, compId);
@@ -2050,7 +2042,7 @@ namespace WixSharp
 
                 //note Wix# expects package.Attribute("Languages") to have a single value (yes it is a temporary limitation)
                 string language = product.Select("Package").Attribute("Languages").Value;
-                string diskId = product.Select("Media")?.Attribute("Id")?.Value ?? "1"; // see Issue #362 (Merge Modules cause NullRefException when MediaTemplate is used) discussion 
+                string diskId = product.Select("Media")?.Attribute("Id")?.Value ?? "1"; // see Issue #362 (Merge Modules cause NullRefException when MediaTemplate is used) discussion
 
                 XElement merge = dirItem.AddElement(
                     new XElement("Merge",
@@ -2121,7 +2113,7 @@ namespace WixSharp
         static void ProcessDirectories(Project wProject, Dictionary<Feature, List<string>> featureComponents,
             List<string> defaultFeatureComponents, List<string> autoGeneratedComponents, XElement dirs)
         {
-            wProject.ResolveWildCards();
+            wProject.ResolveWildCards(Compiler.AutoGeneration.IgnoreWildCardEmptyDirectories);
 
             if (wProject.Dirs.Count() == 0)
             {
@@ -2175,9 +2167,9 @@ namespace WixSharp
                 wProject.ActualInstallDirId = wProject.GetLogicalInstallDir()?.Id;
             }
 
-            // MSI doesn't allow absolute path to be assigned via name. Instead it requires it to be set via 
-            // SetProperty custom action. And what is even more weird the id of such a dir has to be public 
-            // (capitalized). Thus the id auto-assignment cannot be used as it creates non public id(s).   
+            // MSI doesn't allow absolute path to be assigned via name. Instead it requires it to be set via
+            // SetProperty custom action. And what is even more weird the id of such a dir has to be public
+            // (capitalized). Thus the id auto-assignment cannot be used as it creates non public id(s).
             var absolutePathDirs = wProject.AllDirs.Where(x => !x.IsIdSet() && x.Name.IsAbsolutePath()).ToArray();
             foreach (var item in absolutePathDirs)
                 item.Id = $"TARGETDIR{absolutePathDirs.FindIndex(item) + 1}";
@@ -2252,12 +2244,18 @@ namespace WixSharp
                     else
                         defaultFeatureComponents.Add(compId);
 
-                    // WiX/MSI requires the registry to belong to directory 
-                    // (either by nesting XML element or bu having Directory attribute in the registry key component)
+                    // WiX/MSI requires the registry to belong to directory
+                    // (either by nesting XML element or by having Directory attribute in the registry key component)
                     // Instead of placing the reg component into the user dir element place it in the ProgramFiles
                     // dir element. This dir is not going to be created nor deleted during the installation.
-                    // This technique is only used to satisfy WiX/MSI constraint for `Component.RegistryKey` to belong to the directory.
+                    // This technique is only used to satisfy WiX/MSI constraint for `Component.RegistryKey` to belong
+                    // to the directory.
+                    // GetTopLevelPermanentDir works slightly better than GetTopLevelDir because the registry key in this
+                    // case belongs to a permanent dir but not to the user dir. It is still shocking to enclose an entity
+                    // that is a system wide to the directory. But the containment is slightly better in this case.
+
                     XElement topLevelDir = GetTopLevelPermanentDir(product, regVal.Win64);
+                    // topLevelDir = GetTopLevelDir(product); // the old way
 
                     XElement comp = topLevelDir.AddElement(
                                                    new XElement("Component",
@@ -2279,10 +2277,18 @@ namespace WixSharp
                                                .SetAttribute("Type", regVal.RegTypeString)
                                                .SetAttribute("KeyPath", keyPathSet)
                                                .AddAttributes(regVal.Attributes)));
+
+                    if(regVal.Permissions != null)
+                        foreach (Permission permission in  regVal.Permissions)
+                            regValEl.AddElement(permission.ToXElement("Permission"));
+
                     if (!regVal.Key.IsEmpty())
                         regKeyEl.Add(new XAttribute("Key", regVal.Key));
 
-                    string stringValue = regVal.RegValueString.ExpandWixEnvConsts().UnEscapeEnvars();
+                    string stringValue = regVal.RegValueString;
+                    if (AutoElements.ExpandWixConstsInRegValue)
+                        stringValue = regVal.RegValueString.ExpandWixEnvConsts().UnEscapeEnvars();
+
                     if (regValEl.Attribute("Type").Value == "multiString")
                     {
                         foreach (string line in stringValue.GetLines())
@@ -2308,35 +2314,6 @@ namespace WixSharp
 
                     keyPathSet = true;
                 }
-            }
-        }
-
-        static void ProcessUrlReservations(Project project, Dictionary<Feature, List<string>> featureComponents, List<string> defaultFeatureComponents, XElement product)
-        {
-            if (!project.UrlReservations.Any()) return;
-
-            project.Include(WixExtension.Http);
-
-            int componentCount = 0;
-            foreach (UrlReservation item in project.UrlReservations)
-            {
-                componentCount++;
-
-                var compId = "UrlReservation" + componentCount;
-
-                if (item.ActualFeatures.Any())
-                    featureComponents.Map(item.ActualFeatures, compId);
-                else
-                    defaultFeatureComponents.Add(compId);
-
-                var topLevelDir = GetTopLevelDir(product);
-
-                var comp = topLevelDir.AddElement(
-                    new XElement("Component",
-                        new XAttribute("Id", compId),
-                        new XAttribute("Guid", WixGuid.NewGuid(compId))));
-
-                comp.Add(item.ToXml());
             }
         }
 
@@ -2383,7 +2360,7 @@ namespace WixSharp
             }
         }
 
-        static void InsertIISElements(XElement dirItem, XElement component, IISVirtualDir[] wVDirs, Project project, Dictionary<Feature, List<string>> featureComponents = null, List<string> defaultFeatureComponents = null)
+        static void InsertIISElements(XElement dirItem, XElement component, IISVirtualDir[] wVDirs, Project project)
         {
             if (!wVDirs.Any())
                 return;
@@ -2412,6 +2389,7 @@ namespace WixSharp
                                                      xWebApp = new XElement(ns + "WebApplication",
                                                                    new XAttribute("Id", wVDir.AppName.Expand() + "WebApplication"),
                                                                    new XAttribute("Name", wVDir.AppName))));
+                xVDir.AddAttributes(wVDir.Attributes);
 
                 xWebApp.SetAttribute("AllowSessions", wVDir.AllowSessions)
                        .SetAttribute("Buffer", wVDir.Buffer)
@@ -2484,6 +2462,11 @@ namespace WixSharp
                 properties.Add(new Property("REBOOT", wProject.RebootSupressing.ToString()));
             }
 
+            if (wProject.MajorUpgrade != null && wProject.ReinstallMode.IsNotEmpty())
+            {
+                properties.Add(new Property("REINSTALLMODE", wProject.ReinstallMode));
+            }
+
             foreach (var prop in properties)
             {
                 if (prop is PropertyRef)
@@ -2533,6 +2516,8 @@ namespace WixSharp
                     var parentElement = product.AddElement(new XElement("Property")
                                                .SetAttribute("Id", prop.Name)
                                                .SetAttribute("Value", prop.Value)
+                                               .SetAttribute("Hidden", prop.Hidden)
+                                               .SetAttribute("Secure", prop.Secure)
                                                .AddAttributes(prop.Attributes));
 
                     if (prop.GenericItems.Any())
@@ -2786,8 +2771,8 @@ namespace WixSharp
                             if (AutoElements.ScheduleDeferredActionsAfterTunnellingTheirProperties || wAction.RawId == nameof(ManagedProjectActions.WixSharp_AfterInstall_Action))
                             {
                                 // Inject fetching properties CA just before the deferred action AfterInstrallEventHandler.
-                                // This might be a good practice to do for all deferred actions. However it's hard to predict the 
-                                // full impact of the auto-change for all user defined deferred actions. So limit the technique 
+                                // This might be a good practice to do for all deferred actions. However it's hard to predict the
+                                // full impact of the auto-change for all user defined deferred actions. So limit the technique
                                 // to the deferred actions defined by WixSharp itself only.
 
                                 stepAttr = sequenceNumberAttr;
@@ -3046,6 +3031,24 @@ namespace WixSharp
             }
         }
 
+        internal static string FindClientAssemblyInCallStack()
+        {
+            var st = new StackTrace(false);
+            for (int i = 0; i < st.FrameCount; i++)
+            {
+                var asm = st.GetFrame(i).GetMethod().DeclaringType?.Assembly;
+                if (asm != System.Reflection.Assembly.GetExecutingAssembly())
+                {
+                    if (asm == "".GetType().Assembly || asm.FullName.StartsWith("mscorlib."))
+                        // being executed as a release-compiled script
+                        return Environment.GetEnvironmentVariable("EntryScriptAssembly");
+                    else
+                        return asm.GetLocation();
+                }
+            }
+            return null;
+        }
+
         static string clientAssembly;
 
         /// <summary>
@@ -3088,10 +3091,13 @@ namespace WixSharp
 
         internal static string ResolveClientAsm(string outDir)
         {
+            if (Compiler.ClientAssembly.IsEmpty())
+                Compiler.ClientAssembly = Compiler.FindClientAssemblyInCallStack();
+
             //restore the original assembly name as MakeSfxCA does not like renamed assemblies
             string newName = Utils.OriginalAssemblyFile(ClientAssembly);
             newName = newName.PathChangeDirectory(outDir);
-
+            IO.Directory.CreateDirectory(outDir);
 
             if (!ClientAssembly.SamePathAs(newName))
             {
@@ -3122,9 +3128,6 @@ namespace WixSharp
         /// <returns>Batch file path.</returns>
         static public string BuildPackageAsmCmd(string asm, string nativeDll = null, string[] refAssemblies = null, string outDir = null, string configFilePath = null, Platform? platform = null, bool embeddedUI = false)
         {
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             string batchFile = IO.Path.Combine(outDir, "Build_CA_DLL.cmd");
 
             PackageManagedAsm(asm,
@@ -3150,9 +3153,6 @@ namespace WixSharp
         /// <returns>Package file path.</returns>
         static public string BuildPackageAsm(string asm, string nativeDll = null, string[] refAssemblies = null, string outDir = null, string configFilePath = null, Platform? platform = null, bool embeddedUI = false)
         {
-            if (ClientAssembly.IsEmpty())
-                ClientAssembly = System.Reflection.Assembly.GetCallingAssembly().GetLocation();
-
             nativeDll = nativeDll ?? IO.Path.ChangeExtension(asm, ".CA.dll");
 
             PackageManagedAsm(asm, nativeDll ?? IO.Path.ChangeExtension(asm, ".CA.dll"), refAssemblies ?? new string[0], outDir ?? Environment.CurrentDirectory, configFilePath, platform, embeddedUI);
@@ -3219,7 +3219,7 @@ namespace WixSharp
 
             if (configFilePath.IsNotEmpty())
             {
-                if (configFile != configFilePath)
+                if (configFile.PathGetFullPath() != configFilePath.PathGetFullPath())
                 {
                     IO.File.Copy(configFilePath, configFile, true);
                     Compiler.TempFiles.Add(configFile);
@@ -3282,6 +3282,12 @@ namespace WixSharp
             }
         }
 
+        /// <summary>
+        /// Gets a value indicating whether the compiler supports WiX version 4 (and above) toolset.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance is wix4; otherwise, <c>false</c>.
+        /// </value>
         public static bool IsWix4
         {
             get => false;
@@ -3372,11 +3378,11 @@ namespace WixSharp
 
             string name;
             // name needs to be escaped but only if it is not an absolute path.
-            // Absolute path is going to be handled via auto-injection and 
+            // Absolute path is going to be handled via auto-injection and
             if (isAbsolutePathDir)
                 name = wDir.Name;
             else
-                //Issue #45 Can't install dll to windows/system32 
+                //Issue #45 Can't install dll to windows/system32
                 name = wDir.Name.ExpandWixEnvConsts();
 
             if (!wDir.IsIdSet())

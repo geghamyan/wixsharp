@@ -6,12 +6,12 @@ using WixSharp;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var project =
             new Project("MyProduct",
                 new Dir(@"%ProgramFiles%\My Company\My Product",
-                    new File(@"..\Install Files\Files\Bin\MyApp.exe")),
+                    new File(@"..\Install Files\Files\Bin\MyApp.exe") { AddCloseAction = true }),
                 new Property("IP_ADRESS", "127.0.0.1"),
                 new IniFile("config.ini", "INSTALLDIR", IniFileAction.createLine, "discovery", "enabled", "false"),
                 new IniFile("config.ini", "INSTALLDIR", IniFileAction.createLine, "info", "enabled_server", "[IP_ADRESS]"));

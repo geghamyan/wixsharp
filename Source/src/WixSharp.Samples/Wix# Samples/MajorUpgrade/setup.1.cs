@@ -2,15 +2,15 @@
 //css_ref Wix_bin\SDK\Microsoft.Deployment.WindowsInstaller.dll;
 //css_ref System.Core.dll;
 using System;
+using System.Windows.Forms;
 using System.Xml;
 using System.Xml.Linq;
-using System.Windows.Forms;
 using WixSharp;
 using WixSharp.CommonTasks;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var project =
             new ManagedProject("MyProduct",
@@ -25,6 +25,7 @@ class Script
         project.MajorUpgradeStrategy = MajorUpgradeStrategy.Default;
         project.MajorUpgradeStrategy.RemoveExistingProductAfter = Step.InstallInitialize;
         project.BeforeInstall += project_BeforeInstall;
+        project.PreserveTempFiles = true;
 
         Compiler.BuildMsi(project, "setup.1.msi");
     }

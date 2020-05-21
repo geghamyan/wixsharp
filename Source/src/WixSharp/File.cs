@@ -27,11 +27,11 @@ THE SOFTWARE.
 
 #endregion Licence...
 
-using IO = System.IO;
-using System.Linq;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
+using IO = System.IO;
 
 namespace WixSharp
 {
@@ -55,7 +55,7 @@ namespace WixSharp
     /// Compiler.BuildMsi(project);
     /// </code>
     /// </example>
-    public partial class File : WixEntity
+    public class File : WixEntity
     {
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the <see cref="File"/>.
@@ -138,7 +138,7 @@ namespace WixSharp
             IISVirtualDirs = items.OfType<IISVirtualDir>().ToArray();
             ServiceInstaller = items.OfType<ServiceInstaller>().FirstOrDefault();
             Permissions = items.OfType<FilePermission>().ToArray();
-            GenericItems = items.OfType<IGenericEntity>().ToArray();
+            GenericItems = items.OfType<IGenericEntity>().Where(val => val.GetType() != typeof(ServiceInstaller)).ToArray();
 
             FirewallExceptions = items.OfType<FirewallException>().ToArray();
 
@@ -153,14 +153,14 @@ namespace WixSharp
 
             if (firstUnExpectedItem.Any())
                 throw new ApplicationException("{0} is unexpected. Only {2}, {3}, {4}, {5}, {6} and {7} items can be added to {1}".FormatWith(
-                                                firstUnExpectedItem.First().GetType(),
-                                                this.GetType(),
-                                                typeof(FileShortcut),
-                                                typeof(FileAssociation),
-                                                typeof(ServiceInstaller),
-                                                typeof(FilePermission),
-                                                typeof(FirewallException),
-                                                typeof(IGenericEntity)));
+                                               firstUnExpectedItem.First().GetType(),
+                                               this.GetType(),
+                                               typeof(FileShortcut),
+                                               typeof(FileAssociation),
+                                               typeof(ServiceInstaller),
+                                               typeof(FilePermission),
+                                               typeof(FirewallException),
+                                               typeof(IGenericEntity)));
         }
 
         /// <summary>
@@ -172,8 +172,8 @@ namespace WixSharp
         /// The service installer associated with the file.
         ///  Set this field to the properly initialized instance of <see cref="ServiceInstaller"/> if the file is a windows service module.
         /// </summary>
-        public ServiceInstaller ServiceInstaller = null;
-        
+        public IGenericEntity ServiceInstaller = null;
+
         /// <summary>
         /// Collection of the contained <see cref="IISVirtualDir"/>s.
         /// </summary>
@@ -193,13 +193,13 @@ namespace WixSharp
         /// <summary>
         /// Controls if an existing file should be overwritten during the installation.
         /// By default MSI runtime does not install the file if it already exists at the
-        /// deployment destination on the target system. This field allows changing 
-        /// this behaviour and ensuring that a file installed always even when existed 
-        /// prior the installation. 
-        /// <para>If this field is set to <c>true</c> the WixSharp injects the following 
-        /// element into the file's parent component. 
+        /// deployment destination on the target system. This field allows changing
+        /// this behaviour and ensuring that a file installed always even when existed
+        /// prior the installation.
+        /// <para>If this field is set to <c>true</c> the WixSharp injects the following
+        /// element into the file's parent component.
         /// <pre>&lt;RemoveFile Id="Remove_Filetxt" Name="File.txt" On="install" /&gt;</pre>
-        /// 
+        ///
         /// </para>
         /// </summary>
         public bool OverwriteOnInstall = false;
@@ -212,7 +212,11 @@ namespace WixSharp
         /// <summary>
         /// Collection of <see cref="T:WixSharp.FirewallException" /> to be applied to the file.
         /// </summary>
-        public FirewallException[] FirewallExceptions = new FirewallException[0];
+        public FirewallException[] FirewallExceptions
+        {
+            get => GenericItems.OfType<FirewallException>().ToArray();
+            set => GenericItems = GenericItems.Concat(value).Distinct().ToArray();
+        }
 
         /// <summary>
         /// Collection of <see cref="T:WixSharp.IGenericEntity" /> to be applied to the file.
@@ -229,20 +233,45 @@ namespace WixSharp
         /// </value>
         public bool? NeverOverwrite
         {
-            get
-            {
-                if (attributesBag.ContainsKey("Component:NeverOverwrite"))
-                    return (attributesBag["Component:NeverOverwrite"] == "yes");
-                else
-                    return null;
-            }
-            set
-            {
-                if (value.HasValue)
-                    attributesBag["Component:NeverOverwrite"] = value.Value.ToYesNo();
-                else if (attributesBag.ContainsKey("Component:NeverOverwrite"))
-                    attributesBag.Remove("Component:NeverOverwrite");
-            }
+            get => attributesBag.Get("Component:NeverOverwrite") == "yes";
+
+            set => attributesBag.Set("Component:NeverOverwrite", value.ToNullOrYesNo());
+        }
+
+        /// <summary>
+        /// The flag that indicates if <c>CloseApplication</c> needs to be added for the specified file.
+        /// <example>
+        /// <code>
+        /// new Project("MyProduct",
+        ///     new Dir(@"%ProgramFiles%\My Company\My Product",
+        ///         new File(@"..\Install Files\Files\Bin\MyApp.exe") { AddCloseAction = true }),
+        ///     ...
+        ///
+        /// // the code above is equivalent of code below
+        ///
+        /// new Project("MyProduct",
+        ///     new Dir(@"%ProgramFiles%\My Company\My Product",
+        ///         new File(@"..\Install Files\Files\Bin\MyApp.exe"),
+        ///     new CloseApplication("MyApp.exe", true, false)),
+        ///     ...
+        /// </code>
+        /// </example>
+        /// </summary>
+        public bool? AddCloseAction;
+
+        /// <summary>
+        /// Gets or sets the custom name of the target file. By default the name is
+        /// the same name as the source file. IE file <c>c:\files\app.exe</c> will be installed
+        /// as <c>app.exe</c>.
+        /// </summary>
+        /// <value>
+        /// The name of the target file.
+        /// </value>
+        public string TargetFileName
+        {
+            get => attributesBag.Get("Name");
+
+            set => attributesBag.Set("Name", value);
         }
     }
 }

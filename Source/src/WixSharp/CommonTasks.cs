@@ -27,22 +27,23 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Forms;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Microsoft.Deployment.WindowsInstaller;
 using WixSharp;
+using WixSharp.Bootstrapper;
 using WixSharp.Controls;
 using IO = System.IO;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 namespace WixSharp.CommonTasks
 {
     /// <summary>
     ///
     /// </summary>
-    public static partial class Tasks
+    public static class Tasks
     {
         /// <summary>
         /// Builds the bootstrapper.
@@ -93,6 +94,9 @@ namespace WixSharp.CommonTasks
 
             return nbs.Build();
         }
+
+        static internal int ConsoleRun(this string exe, string args)
+            => new ExternalTool { ExePath = exe, Arguments = args }.ConsoleRun();
 
         /// <summary>
         /// Builds the bootstrapper.
@@ -152,7 +156,7 @@ namespace WixSharp.CommonTasks
         /// Please use <see cref="DigitalySignBootstrapper"/> for signing a bootstrapper.
         /// </summary>
         /// <param name="fileToSign">The file to sign.</param>
-        /// <param name="pfxFile">Specify the signing certificate in a file. If this file is a PFX with a password, the password may be supplied
+        /// <param name="certificateId">Specify the signing certificate in a file common name or sha1 hash. If this file is a PFX with a password, the password may be supplied
         /// with the <c>password</c> parameter.</param>
         /// <param name="timeURL">The timestamp server's URL. If this option is not present (pass to null), the signed file will not be timestamped.
         /// A warning is generated if timestamping fails.</param>
@@ -160,9 +164,11 @@ namespace WixSharp.CommonTasks
         /// <param name="optionalArguments">Extra arguments to pass to the <c>SignTool.exe</c> utility.</param>
         /// <param name="wellKnownLocations">The optional ';' separated list of directories where SignTool.exe can be located.
         /// If this parameter is not specified WixSharp will try to locate the SignTool in the built-in well-known locations (system PATH)</param>
-        /// <param name="useCertificateStore">A flag indicating if the value of <c>pfxFile</c> is a name of the subject of the signing certificate
+        /// <param name="certificateStore">Where to load the certificate from.
         /// from the certificate store (as opposite to the certificate file). This value can be a substring of the entire subject name.</param>
         /// <param name="dualSign">A flag indicating if the file should be signed with both SHA1 and SHA256.</param>
+        /// <param name="outputLevel">A flag indicating the output level</param>
+        /// <param name="hashAlgorithm">the hash algorithm to use</param>
         /// <returns>Exit code of the <c>SignTool.exe</c> process.</returns>
         ///
         /// <example>The following is an example of signing <c>Setup.msi</c> file.
@@ -176,39 +182,76 @@ namespace WixSharp.CommonTasks
         ///     false);
         /// </code>
         /// </example>
-        static public int DigitalySign(string fileToSign, string pfxFile, string timeURL, string password,
-            string optionalArguments = null, string wellKnownLocations = null, bool useCertificateStore = false,
-            bool dualSign = false)
+        static public int DigitalySign(string fileToSign, string certificateId, string timeURL, string password,
+            string optionalArguments = null, string wellKnownLocations = null, StoreType certificateStore = StoreType.file,
+            bool dualSign = false, SignOutputLevel outputLevel = SignOutputLevel.Verbose, HashAlgorithmType hashAlgorithm = HashAlgorithmType.sha1)
         {
             //SHA1: "C:\Program Files\\Microsoft SDKs\Windows\v6.0A\bin\signtool.exe" sign /f "pfxFile" /p password /v "fileToSign" /t timeURL
             //SHA256: "C:\Program Files\\Microsoft SDKs\Windows\v6.0A\bin\signtool.exe" sign /f "pfxFile" /p password /v "fileToSign" /tr timeURL /td sha256 /fd sha256 /as
             //string args = "sign /v /f \"" + pfxFile + "\" \"" + fileToSign + "\"";
 
-            string certPlace = useCertificateStore ? "/n" : "/f";
+            string certPlace;
+            switch (certificateStore)
+            {
+                case StoreType.commonName:
+                    certPlace = "/n";
+                    break;
 
-            string args = $"sign /v {certPlace} \"{pfxFile}\"";
+                case StoreType.sha1Hash:
+                    certPlace = "/sha1";
+                    break;
+
+                default:
+                    certPlace = "/f";
+                    break;
+            }
+
+            string outputLevelArg = string.Empty;
+            switch (outputLevel)
+            {
+                case SignOutputLevel.Minimal:
+                    outputLevelArg = "/q ";
+                    break;
+
+                case SignOutputLevel.Standard:
+                    break;
+
+                case SignOutputLevel.Verbose:
+                    outputLevelArg = "/v ";
+                    break;
+
+                case SignOutputLevel.Debug:
+                    outputLevelArg = "/debug ";
+                    break;
+            }
+
+            string args = $"sign {outputLevelArg}{certPlace} \"{certificateId}\"";
             if (password.IsNotEmpty())
                 args += $" /p \"{password}\"";
 
-            string sha1 = args;
-            if (timeURL != null)
-                sha1 += $" /t \"{timeURL}\"";
-            if (!optionalArguments.IsEmpty())
-                sha1 += " " + optionalArguments;
+            string hash = args;
+            if (hashAlgorithm == HashAlgorithmType.sha256)
+                hash += " /fd sha256 ";
 
-            sha1 += $" \"{fileToSign}\"";
+            if (timeURL != null)
+                hash += $" /t \"{timeURL}\"";
+            if (!optionalArguments.IsEmpty())
+                hash += " " + optionalArguments;
+
+            hash += $" \"{fileToSign}\"";
 
             var tool = new ExternalTool
             {
-                WellKnownLocations = wellKnownLocations ?? @"C:\Program Files\Microsoft SDKs\Windows\v6.0A\bin;" +
-                                                           @"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin;" +
-                                                           @"C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool;" +
-                                                           @"C:\Program Files (x86)\Windows Kits\8.0\bin\x86;" +
-                                                           @"C:\Program Files (x86)\Windows Kits\8.1\bin\x86;" +
-                                                           @"C:\Program Files (x86)\Windows Kits\10\bin\x86;" +
-                                                           @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x86",
+                WellKnownLocations = wellKnownLocations ??
+                                     @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x86;" +
+                                     @"C:\Program Files (x86)\Windows Kits\10\bin\x86;" +
+                                     @"C:\Program Files (x86)\Windows Kits\8.1\bin\x86;" +
+                                     @"C:\Program Files (x86)\Windows Kits\8.0\bin\x86;" +
+                                     @"C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool;" +
+                                     @"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin;" +
+                                     @"C:\Program Files\Microsoft SDKs\Windows\v6.0A\bin",
                 ExePath = "signtool.exe",
-                Arguments = sha1
+                Arguments = hash
             };
 
             if (password.IsNotEmpty())
@@ -247,6 +290,7 @@ namespace WixSharp.CommonTasks
         /// <param name="useCertificateStore">A flag indicating if the value of <c>pfxFile</c> is a name of the subject of the signing certificate
         /// from the certificate store (as opposite to the certificate file). This value can be a substring of the entire subject name.</param>
         /// <param name="dualSign">A flag indicating if the file should be signed with both SHA1 and SHA256.</param>
+        /// <param name="outputLevel">A flag indicating the output level</param>
         /// <returns>Exit code of the <c>SignTool.exe</c> process.</returns>
         ///
         /// <example>The following is an example of signing <c>SetupBootstrapper.exe</c> file.
@@ -260,13 +304,13 @@ namespace WixSharp.CommonTasks
         /// </code>
         /// </example>
         static public int DigitalySignBootstrapper(string bootstrapperFileToSign, string pfxFile, string timeURL, string password,
-            string optionalArguments = null, string wellKnownLocations = null, bool useCertificateStore = false, bool dualSign = false)
+            string optionalArguments = null, string wellKnownLocations = null, bool useCertificateStore = false, bool dualSign = false, SignOutputLevel outputLevel = SignOutputLevel.Verbose)
         {
-            var retval = DigitalySignBootstrapperEngine(bootstrapperFileToSign, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore, dualSign);
+            var retval = DigitalySignBootstrapperEngine(bootstrapperFileToSign, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore, dualSign, outputLevel);
             if (retval != 0)
                 return retval;
 
-            return DigitalySign(bootstrapperFileToSign, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore, dualSign);
+            return DigitalySign(bootstrapperFileToSign, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore ? StoreType.commonName : StoreType.file, dualSign, outputLevel);
         }
 
         /// <summary>
@@ -287,6 +331,7 @@ namespace WixSharp.CommonTasks
         /// <param name="useCertificateStore">A flag indicating if the value of <c>pfxFile</c> is a name of the subject of the signing certificate
         /// from the certificate store (as opposite to the certificate file). This value can be a substring of the entire subject name.</param>
         /// <param name="dualSign">A flag indicating if the file should be signed with both SHA1 and SHA256.</param>
+        /// <param name="outputLevel">A flag indicating the output level</param>
         /// <returns>Exit code of the <c>SignTool.exe</c> process.</returns>
         ///
         /// <example>The following is an example of signing <c>SetupBootstrapper.exe</c> file engine.
@@ -300,7 +345,7 @@ namespace WixSharp.CommonTasks
         /// </code>
         /// </example>
         static public int DigitalySignBootstrapperEngine(string bootstrapperFileToSign, string pfxFile, string timeURL, string password,
-            string optionalArguments = null, string wellKnownLocations = null, bool useCertificateStore = false, bool dualSign = false)
+            string optionalArguments = null, string wellKnownLocations = null, bool useCertificateStore = false, bool dualSign = false, SignOutputLevel outputLevel = SignOutputLevel.Verbose)
         {
             var insigniaPath = IO.Path.Combine(Compiler.WixLocation, "insignia.exe");
             string enginePath = IO.Path.GetTempFileName();
@@ -317,7 +362,7 @@ namespace WixSharp.CommonTasks
                 if (retval != 0)
                     return retval;
 
-                retval = DigitalySign(enginePath, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore, dualSign);
+                retval = DigitalySign(enginePath, pfxFile, timeURL, password, optionalArguments, wellKnownLocations, useCertificateStore ? StoreType.commonName : StoreType.file, dualSign, outputLevel);
                 if (retval != 0)
                     return retval;
 
@@ -496,6 +541,12 @@ namespace WixSharp.CommonTasks
             return project;
         }
 
+        static internal Project AddGenericItem(this Project project, params IGenericEntity[] items)
+        {
+            project.GenericItems = project.GenericItems.Combine(items).Distinct().ToArray();
+            return project;
+        }
+
         /// <summary>
         /// Adds the action to the Project.
         /// </summary>
@@ -539,6 +590,16 @@ namespace WixSharp.CommonTasks
         static public Project AddRegValue(this Project project, RegValue item)
         {
             return project.AddRegValues(item);
+        }
+
+        /// <summary>
+        /// Adds the registry key to the Project.
+        /// </summary>
+        /// <param name="project">The project.</param>
+        /// <param name="key">The key.</param>
+        public static void AddRegKey(this Project project, RegKey key)
+        {
+            project.AddRegValues(key.GetValues());
         }
 
         /// <summary>
@@ -1053,6 +1114,24 @@ namespace WixSharp.CommonTasks
         }
 
         /// <summary>
+        /// Sets the version of the project to the version value retrieved from the file.
+        /// <para>If the file is an assembly then the assembly version is returned.</para>
+        /// <para>If the file is a native binary then file version is returned.</para>
+        /// </summary>
+        /// <remarks>
+        /// Attempt to extract the assembly version may fail because the dll/exe file may not be an assembly
+        /// or because it can be in the wrong assembly format (x64 vs x86). In any case the method will fall back to
+        /// the file version.</remarks>
+        /// <param name="project">The project.</param>
+        /// <param name="filePath">The file path.</param>
+        /// <returns></returns>
+        static public Bundle SetVersionFromFile(this Bundle project, string filePath)
+        {
+            project.Version = Tasks.GetVersionFromFile(filePath);
+            return project;
+        }
+
+        /// <summary>
         /// Extracts value retrieved from the file.
         /// <para>If the file is an assembly then the assembly version is returned.</para>
         /// <para>If the file is an MSI then the product version is returned.</para>
@@ -1202,7 +1281,7 @@ namespace WixSharp.CommonTasks
 
             //disconnect prev and next dialogs
             project.CustomUI.UISequence.RemoveAll(x => (x.Dialog == prevDialog && x.Control == Buttons.Next) ||
-                                                 (x.Dialog == nextDialog && x.Control == Buttons.Back));
+                                                  (x.Dialog == nextDialog && x.Control == Buttons.Back));
 
             //create new dialogs connection with showAction in between
             project.CustomUI.On(prevDialog, Buttons.Next, new ExecuteCustomAction(showClrDialog))
@@ -1256,6 +1335,53 @@ namespace WixSharp.CommonTasks
                 project.AddProperty(new PropertyRef(prop));
 
             project.Include(WixExtension.NetFx);
+
+            return project;
+        }
+
+        /// <summary>
+        /// Adds the XML fragment to the element specified by <c>placementPath</c>.
+        /// <para>Note <c>placementPath</c> can only contain forward slashes.</para>
+        /// <example>
+        /// The following is an example of adding `Log` element to the `Wix/Bundle` element of the
+        /// bootstrapper project.
+        /// <code>
+        /// bootstrapper.AddXml("Wix/Bundle", "&lt;Log PathVariable=\"LogFileLocation\"/&gt;");
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <param name="project">The project.</param>
+        /// <param name="placementPath">The placement path.</param>
+        /// <param name="xml">The XML.</param>
+        /// <returns></returns>
+        static public WixProject AddXml(this WixProject project, string placementPath, string xml)
+        {
+            project.WixSourceGenerated += doc => doc.Select(placementPath)
+                                                    .Add(XElement.Parse(xml));
+
+            return project;
+        }
+
+        /// <summary>
+        /// Adds the XML fragment to the element specified by <c>placementPath</c> and the element name with the
+        /// attribute definition.
+        /// <para>Note <c>placementPath</c> can only contain forward slashes.</para>
+        /// <example>The following is an example of adding `Log` element to the `Wix/Bundle` element of the
+        /// bootstrapper project.
+        /// <code>
+        /// bootstrapper.AddXmlElement("Wix/Bundle", "Log", "PathVariable=LogFileLocation");
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <param name="project">The project.</param>
+        /// <param name="placementPath">The placement path.</param>
+        /// <param name="elementName">Name of the element.</param>
+        /// <param name="attributesDefinition">The attributes definition.</param>
+        /// <returns></returns>
+        static public WixProject AddXmlElement(this WixProject project, string placementPath, string elementName, string attributesDefinition)
+        {
+            project.WixSourceGenerated += doc => doc.Select(placementPath)
+                                                    .AddElement(elementName, attributesDefinition);
 
             return project;
         }
@@ -1366,6 +1492,36 @@ namespace WixSharp.CommonTasks
             WixEntity.MapComponentToFeatures(component.Attr("Id"), entity.ActualFeatures, context);
             return component;
         }
+
+        /// <summary>
+        /// Sets the package languages for a specified msi file from the value of the `project.Languages`.
+        /// </summary>
+        /// <param name="msiPath">The msi path.</param>
+        /// <param name="project">The project.</param>
+        static public void SetPackageLanguagesFrom(this string msiPath, Project project)
+            => msiPath.SetPackageLanguages(project.Language.ToLcidList());
+
+        /// <summary>
+        /// Sets the package languages for a specified msi file.
+        /// </summary>
+        /// <param name="msiPath">The msi path.</param>
+        /// <param name="languages">The languages.</param>
+        static public void SetPackageLanguages(this string msiPath, string languages)
+        {
+            using (var database = new Database(msiPath, DatabaseOpenMode.Direct))
+            {
+                // sample: "Intel;1033,1031,1049"
+                database.SummaryInfo.Template = "Intel;" + languages;
+            }
+        }
+
+        /// <summary>
+        /// Embeds a language transformation (mst file) in the specified msi file.
+        /// </summary>
+        /// <param name="msi">The msi.</param>
+        /// <param name="mst">The MST.</param>
+        public static void EmbedTransform(this string msi, string mst)
+            => Msi.EmbedTransform.Do(msi, mst);
 
         /// <summary>
         /// Finds the first descendant 'ProgramFiles' or 'ProgramFiles64Folder' directory element.
@@ -1546,14 +1702,14 @@ namespace WixSharp.CommonTasks
     public class ExternalTool
     {
         /// <summary>
-        /// The default console out handler. It can be used when you want to have fine control over 
+        /// The default console out handler. It can be used when you want to have fine control over
         /// STD output of the external tool.
         /// </summary>
         /// <example>The following is an example of masking the word 'secret' in the output text.
         /// <code>
         /// ExternalTool.ConsoleOut = (line) => Console.WriteLine(line.Replace("secret", "******"))
         /// var tool = new ExternalTool
-        /// { 
+        /// {
         ///     ExePath = "tool.exe",
         ///     Arguments = "-a -b",
         /// };
@@ -1597,7 +1753,8 @@ namespace WixSharp.CommonTasks
         /// <summary>
         /// Gets or sets the well known locations for probing the exe file.
         /// <para>
-        /// By default probing is conducted in the locations defined in the system environment variable <c>PATH</c>. By settin <c>WellKnownLocations</c>
+        /// By default probing is conducted in the locations defined in the system environment variable <c>PATH</c>.
+        /// By setting <c>WellKnownLocations</c>
         /// you can add some extra probing locations. The directories must be separated by the ';' character.
         /// </para>
         /// </summary>
@@ -1676,30 +1833,32 @@ namespace WixSharp.CommonTasks
                 if (EchoOn)
                     onConsoleOut("Execute:\n\"" + this.ExePath + "\" " + this.Arguments);
 
-                var process = new Process();
-                process.StartInfo.FileName = exePath;
-                process.StartInfo.Arguments = this.Arguments;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.StandardOutputEncoding = this.Encoding ?? DefaultEncoding;
-                process.StartInfo.CreateNoWindow = true;
-                process.Start();
-
-                if (onConsoleOut != null)
+                using (var process = new Process())
                 {
-                    string line = null;
-                    while (null != (line = process.StandardOutput.ReadLine()))
-                    {
-                        onConsoleOut(line);
-                    }
+                    process.StartInfo.FileName = exePath;
+                    process.StartInfo.Arguments = this.Arguments;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.StandardOutputEncoding = this.Encoding ?? DefaultEncoding;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.Start();
 
-                    string error = process.StandardError.ReadToEnd();
-                    if (!error.IsEmpty())
-                        onConsoleOut(error);
+                    if (onConsoleOut != null)
+                    {
+                        string line = null;
+                        while (null != (line = process.StandardOutput.ReadLine()))
+                        {
+                            onConsoleOut(line);
+                        }
+
+                        string error = process.StandardError.ReadToEnd();
+                        if (!error.IsEmpty())
+                            onConsoleOut(error);
+                    }
+                    process.WaitForExit();
+                    return process.ExitCode;
                 }
-                process.WaitForExit();
-                return process.ExitCode;
             }
             finally
             {
@@ -1724,6 +1883,5 @@ namespace WixSharp.CommonTasks
 
             return null;
         }
-
     }
 }

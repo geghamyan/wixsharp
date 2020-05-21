@@ -10,10 +10,10 @@ using WixSharp;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         AutoElements.LegacyDummyDirAlgorithm = true;
-        AutoElements.SupportEmptyDirectories = CompilerSupportState.Enabled;
+        // AutoElements.SupportEmptyDirectories = CompilerSupportState.Enabled;
         var common = new Feature("Common Files");
         var samples = new Feature("Samples");
 
@@ -30,6 +30,3 @@ class Script
         project.BuildMsi();
     }
 }
-
-
-

@@ -131,6 +131,13 @@ namespace WixSharp
         public Predicate<string> Filter = (file => true);
 
         /// <summary>
+        /// The delegate that is called when a file matching the wildcard of the sourcePath is processed
+        /// and a <see cref="WixSharp.File"/> item is added to the project. It is the most convenient way of
+        /// adjusting the <see cref="WixSharp.File"/> item properties.
+        /// </summary>
+        public Action<File> OnProcess = null;
+
+        /// <summary>
         /// Analyses <paramref name="baseDirectory"/> and returns all files matching <see cref="DirFiles.IncludeMask"/>.
         /// </summary>
         /// <param name="baseDirectory">The base directory for file analysis. It is used in conjunction with
@@ -145,7 +152,6 @@ namespace WixSharp
 
             baseDirectory = IO.Path.GetFullPath(baseDirectory);
 
-            IO.Path.GetFullPath(baseDirectory);
             string rootDirPath;
             if (IO.Path.IsPathRooted(Directory))
                 rootDirPath = Directory;
@@ -163,13 +169,17 @@ namespace WixSharp
                 {
                     var filePath = IO.Path.GetFullPath(file);
 
-                    files.Add(new File(filePath)
+                    var item = new File(filePath)
                     {
                         Feature = this.Feature,
                         Features = this.Features,
                         AttributesDefinition = this.AttributesDefinition,
                         Attributes = this.Attributes.Clone()
-                    });
+                    };
+
+                    OnProcess?.Invoke(item);
+
+                    files.Add(item);
                 }
             }
             return files.ToArray();

@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 using WixSharp;
 using WixSharp.CommonTasks;
 
-class Script
+static class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         Run();
     }

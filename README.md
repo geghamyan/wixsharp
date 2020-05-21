@@ -1,6 +1,6 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/jruj9dmf2dwjn5p3?svg=true)](https://ci.appveyor.com/project/oleg-shilo/wixsharp)
-[![NuGet version (WixSharp)](https://img.shields.io/nuget/v/CS-Script.svg?style=flat-square)](https://www.nuget.org/packages/WixSharp/)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](http://www.csscript.net/Donation.html)
+[![NuGet version (WixSharp)](https://img.shields.io/nuget/v/WixSharp.svg?style=flat-square)](https://www.nuget.org/packages/WixSharp/)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.cs-script.net/cs-script/Donation.html)
 
 <img align="right" src="https://github.com/oleg-shilo/wixsharp/blob/master/Documentation/wiki_images/wixsharp_logo.png" alt="" style="float:right">
 
@@ -12,7 +12,7 @@ _In July 2014 Wix# was migrated to CodePlex [Wix#](https://wixsharp.codeplex.com
 
 ## Project Description
 
-Wix# (WixSharp) is a member in the [CS-Script](https://csscriptsource.codeplex.com/) family. Wix# allows building a complete MSI or WiX source code by executing script files written with 
+Wix# (WixSharp) is a member in the [CS-Script](https://www.cs-script.net/) family. Wix# allows building a complete MSI or WiX source code by executing script files written with 
 the plain C# syntax. Wix# engine uses a C# class structure to mimic WiX entities and their relationships in order to produce a valid deployment model.
 
 Wix# answers many MSI authoring challenges. It solves the common MSI/WiX authoring limitations in a very elegant and yet unorthodox way. Wix# follows the steps of other 
@@ -25,7 +25,7 @@ same language (C#). This also allows homogeneous, simplified and more consistent
 
 **_Overview_**
 
-If you are planing to use Wix# on Linux you my find this [article](https://wixsharp.codeplex.com/wikipage?title=Using%20WixSharp%20On%20Linux) being useful.
+If you are planing to use Wix# on Linux you my find this [article](https://github.com/oleg-shilo/wixsharp/wiki/WixSharp-on-Linux) being useful. Please note that Wix# builds MSI deployment packages and while MSI can be build on Linux it cannot be run on Linux as MSI is a pure Windows technology.   
 
 You can find the instructions on how to author MSI setups with WixSharp in the [Documentation](https://github.com/oleg-shilo/wixsharp/wiki) section. And this section only highlights 
 some of the available features.

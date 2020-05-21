@@ -1,8 +1,9 @@
 #region Licence...
+
 /*
 The MIT License (MIT)
 Copyright (c) 2014 Oleg Shilo
-Permission is hereby granted, 
+Permission is hereby granted,
 free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -19,11 +20,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#endregion
+
+#endregion Licence...
+
 using System;
 using System.Linq;
 using System.Linq.Expressions;
 using IO = System.IO;
+using Reflection = System.Reflection;
 
 namespace WixSharp
 {
@@ -94,7 +98,6 @@ namespace WixSharp
             return string.Join(dirSeparator.ToString(), result);
         }
 
-
         internal static string[] AllConstStringValues<T>()
         {
             var fields = typeof(T).GetFields()
@@ -108,8 +111,6 @@ namespace WixSharp
         internal static string GetTempDirectory()
         {
             string tempDir = IO.Path.GetTempFileName();
-            if (IO.File.Exists(tempDir))
-                IO.File.Exists(tempDir);
 
             if (!IO.Directory.Exists(tempDir))
                 IO.Directory.CreateDirectory(tempDir);
@@ -120,10 +121,19 @@ namespace WixSharp
         internal static string OriginalAssemblyFile(string file)
         {
             //need to do it in a separate domain as we do not want to lock the assembly
-            return (string)ExecuteInTempDomain<AsmReflector>(asm =>
-            {
-                return asm.OriginalAssemblyFile(file);
-            });
+            string dir = IO.Path.GetDirectoryName(IO.Path.GetFullPath(file));
+
+            var asm = AppDomain.CurrentDomain
+                               .GetAssemblies()
+                               .FirstOrDefault(a => a.GetLocation().SamePathAs(file));
+
+            if (asm == null)
+                asm = Reflection.Assembly.ReflectionOnlyLoad(System.IO.File.ReadAllBytes(file));
+
+            // for example 'setup.cs.dll' vs 'setup.cs.compiled'
+            var name = asm.ManifestModule.ScopeName;
+
+            return IO.Path.Combine(dir, name);
         }
 
         internal static void ExecuteInTempDomain<T>(Action<T> action) where T : MarshalByRefObject
@@ -147,7 +157,6 @@ namespace WixSharp
 
                 var result = action(obj);
                 return result;
-
             }
             finally
             {
@@ -163,7 +172,6 @@ namespace WixSharp
                 return Compiler.AssemblyResolve(sender, args);
             else
                 return DefaultDomain_AssemblyResolve(sender, args);
-
         }
 
         static System.Reflection.Assembly DefaultDomain_AssemblyResolve(object sender, ResolveEventArgs args)
@@ -203,10 +211,9 @@ namespace WixSharp
             setup.ApplicationBase = IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             setup.ShadowCopyFiles = "true";
             setup.ShadowCopyDirectories = setup.ApplicationBase;
-            setup.PrivateBinPath = AppDomain.CurrentDomain.BaseDirectory;
+            setup.PrivateBinPath = domain.BaseDirectory;
             return AppDomain.CreateDomain(name ?? Guid.NewGuid().ToString(), null, setup);
         }
-
 
         internal static void EnsureFileDir(string file)
         {
@@ -231,8 +238,6 @@ namespace WixSharp
                 return programFilesDir;
             }
         }
-
-
 
         /// <summary>
         /// Returns the hash code for the instance of a string. It uses deterministic hash-code generation algorithm,

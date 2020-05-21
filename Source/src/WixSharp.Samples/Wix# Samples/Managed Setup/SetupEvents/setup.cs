@@ -5,46 +5,49 @@
 //css_ref System.Xml.dll;
 
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Security.Principal;
 
 using System.Windows.Forms;
+using System.Xml.Linq;
 using Microsoft.Deployment.WindowsInstaller;
 using WixSharp;
 using WixSharp.CommonTasks;
-using System.Diagnostics;
-using System.Linq;
 
 public class Script
 {
     static public void Main()
     {
+        Compiler.AutoGeneration.ValidateCAAssemblies = CAValidation.Disabled;
+
         var bin = new Feature("MyApp Binaries");
         var tools = new Feature("MyApp Tools");
 
         var project =
             new ManagedProject("ManagedSetup",
-                 //one of possible ways of setting custom INSTALLDIR (disabled for demo purposes)
-                 new ManagedAction(Script.SetInstallDir,
-                                   Return.check,
-                                   When.Before,
-                                   Step.LaunchConditions,
-                                   Condition.NOT_Installed,
-                                   Sequence.InstallUISequence),
+                //one of possible ways of setting custom INSTALLDIR (disabled for demo purposes)
+                new ManagedAction(Script.SetInstallDir,
+                                  Return.check,
+                                  When.Before,
+                                  Step.LaunchConditions,
+                                  Condition.NOT_Installed,
+                                  Sequence.InstallUISequence),
                 new Dir(@"%ProgramFiles%\My Company\My Product",
                     new File(bin, @"..\Files\bin\MyApp.exe"),
                     new Dir(bin, "Docs",
                         new File(bin, "readme.txt"))),
 
-               new Dir(new Id("TOOLSDIR"), tools, "Tools",
-                   new File(tools, "setup.cs")),
+                new Dir(new Id("TOOLSDIR"), tools, "Tools",
+                    new File(tools, "setup.cs")),
 
-               //reading TOOLSDIR from registry; the alternative ways is project_UIInit
-               new RegValueProperty("TOOLSDIR",
-                                    RegistryHive.CurrentUser,
-                                    @"SOFTWARE\7-Zip",
-                                    "Path",
-                                    defaultValue: @"C:\My Company\tools")
-               );
+                //reading TOOLSDIR from registry; the alternative ways is project_UIInit
+                new RegValueProperty("TOOLSDIR",
+                                     RegistryHive.CurrentUser,
+                                     @"SOFTWARE\7-Zip",
+                                     "Path",
+                                     defaultValue: @"C:\My Company\tools")
+                              );
 
         //project.ManagedUI = ManagedUI.Empty;
         project.ManagedUI = ManagedUI.Default; //Wix# ManagedUI
@@ -62,6 +65,7 @@ public class Script
             if (!args.IsUninstalling)
                 Tasks.StopService("some_service", throwOnError: false);
         };
+
         project.AfterInstall += args =>
         {
             if (!args.IsUninstalling)
@@ -76,7 +80,7 @@ public class Script
 
     static void Project_UIInitialized(SetupEventArgs e)
     {
-        // just an example of restarting the setup UI elevated. Old fashioned but... convenient and reliable.  
+        // just an example of restarting the setup UI elevated. Old fashioned but... convenient and reliable.
         if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
         {
             MessageBox.Show(e.Session.GetMainWindow(), "You must start the msi file as admin");
@@ -130,17 +134,18 @@ public class Script
         MessageBox.Show(e.Session.GetMainWindow(), "Hello World! (CLR: v" + Environment.Version + ")", "Managed Setup - Load");
 
         var msi = e.MsiFile;
+
         if (!e.IsInstalling && !e.IsUpgrading)
             SetEnvVersion(e.Session);
 
-        //MSI doesn't preserve any e.Session properties if they are accessed from deferred actions (e.g. project_AfterInstall)
-        //Wix# forces some of the properties to be persisted (via CustomActionData) by using user defined
-        //project.DefaultDeferredProperties ("INSTALLDIR,UILevel" by default).
-        //Alternatively you can save any data to the Wix# specific fully persisted data properties "bag" SetupEventArgs.Data.
-        //SetupEventArgs.Data values can be set and accesses at any time from any custom action including deferred one.
+        // MSI doesn't preserve any e.Session properties if they are accessed from deferred actions (e.g. project_AfterInstall)
+        // Wix# forces some of the properties to be persisted (via CustomActionData) by using user defined
+        // project.DefaultDeferredProperties ("INSTALLDIR,UILevel" by default).
+        // Alternatively you can save any data to the Wix# specific fully persisted data properties "bag" SetupEventArgs.Data.
+        // SetupEventArgs.Data values can be set and accesses at any time from any custom action including deferred one.
         var conn = @"Data Source=.\SQLEXPRESS;Initial Catalog=RequestManagement;Integrated Security=SSPI";
         e.Data["persisted_data"] = conn;
-        
+
         MessageBox.Show(e.Session.GetMainWindow(), e.ToString(), "Load " + e.Session["EnvVersion"]);
     }
 
@@ -158,8 +163,9 @@ public class Script
         MessageBox.Show(e.Session.GetMainWindow(),
                         e.ToString() +
                         "\npersisted_data = " + e.Data["persisted_data"] +
-                        "\nEnvVar('INSTALLDIR') -> " + Environment.ExpandEnvironmentVariables("%INSTALLDIR%My App.exe") +
-                        "\nADDLOCAL = " + e.Session.Property("ADDLOCAL"),
+                        "\nADDFEATURES = " + e.Session.Property("ADDFEATURES") +
+                        "\n'MyApp_Binaries' enabled = " + e.Session.IsFeatureEnabled("MyApp Binaries") +
+                        "\nEnvVar('INSTALLDIR') -> " + Environment.ExpandEnvironmentVariables("%INSTALLDIR%My App.exe"),
                         caption: "AfterInstall ");
         try
         {

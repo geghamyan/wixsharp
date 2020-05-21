@@ -10,9 +10,9 @@ using Microsoft.Deployment.WindowsInstaller;
 using WixSharp;
 using WixSharp.CommonTasks;
 
-class Script
+static class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         try
         {
@@ -89,7 +89,7 @@ class Script
     }
 }
 
-public class CustomActions
+public static class CustomActions
 {
     [CustomAction]
     public static ActionResult MyManagedAction(Session session)

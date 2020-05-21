@@ -4,17 +4,18 @@
 //css_ref System.Core.dll;
 //css_ref System.Xml.dll;
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Deployment.WindowsInstaller;
+using Microsoft.Win32;
 using WixSharp;
 using WixSharp.CommonTasks;
 using WixSharp.Forms;
-using System.Diagnostics;
 using WixSharp.UI.Forms;
 
-public class Script
+public static class Script
 {
     static public void Main()
     {
@@ -35,14 +36,13 @@ public class Script
         manuals.Children.Add(dev_manuals);
 
         var project = new ManagedProject("ManagedSetup",
-                            new Dir(@"%ProgramFiles%\My Company\My Product",
-                                new File(binaries, @"..\Files\bin\MyApp.exe"),
-                                new Dir("Docs",
-                                    new File(docs, "readme.txt"),
-                                    new File(tuts, @"..\Files\Docs\tutorial.txt"),
-                                    new File(user_manuals, @"..\Files\Docs\Manual.txt"),
-                                    new File(dev_manuals, @"..\Files\Docs\DevManual.txt")
-                                    )));
+                              new Dir(@"%ProgramFiles%\My Company\My Product",
+                                  new File(binaries, @"..\Files\bin\MyApp.exe"),
+                                  new Dir("Docs",
+                                      new File(docs, "readme.txt"),
+                                      new File(tuts, @"..\Files\Docs\tutorial.txt"),
+                                      new File(user_manuals, @"..\Files\Docs\Manual.txt"),
+                                      new File(dev_manuals, @"..\Files\Docs\DevManual.txt"))));
 
         project.ManagedUI = new ManagedUI();
 
@@ -53,10 +53,10 @@ public class Script
 
         //removing all entry dialogs and installdir
         project.ManagedUI.InstallDialogs.Add(Dialogs.Welcome)
-                                        //.Add(Dialogs.Licence) // decide if to show (or not) this dialog at runtime
-                                        //.Add(Dialogs.Features)
-                                        //.Add(Dialogs.SetupType)
-                                        //.Add(Dialogs.InstallDir)
+                                        // .Add(Dialogs.Licence) // decide if to show (or not) this dialog at runtime
+                                        // .Add(Dialogs.Features)
+                                        // .Add(Dialogs.SetupType)
+                                        // .Add(Dialogs.InstallDir)
                                         .Add(Dialogs.Progress)
                                         .Add(Dialogs.Exit);
 
@@ -77,7 +77,7 @@ public class Script
 
         project.SetNetFxPrerequisite(Condition.Net45_Installed, "Please install .Net 4.5 First");
 
-        project.PreserveTempFiles = true;
+        // project.PreserveTempFiles = true;
         project.SourceBaseDir = @"..\..\";
 
         project.BuildMsi();
@@ -106,6 +106,9 @@ public class Script
 
     static void CheckCompatibility(SetupEventArgs e)
     {
+        // MsiRuntime runtime = e.ManagedUI.Shell.MsiRuntime();
+        // foreach (string text in runtime.UIText.Keys.ToArray())
+        //     runtime.UIText[text] = runtime.UIText[text].ToUpper();
         //MessageBox.Show("Hello World! (CLR: v" + Environment.Version + ")", "Embedded Managed UI (" + ((IntPtr.Size == 8) ? "x64" : "x86") + ")");
 
         if (e.IsInstalling)

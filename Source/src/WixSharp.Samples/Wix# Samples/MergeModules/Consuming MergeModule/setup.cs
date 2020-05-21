@@ -13,7 +13,7 @@ using System.Text.RegularExpressions;
 
 class Script
 {
-    static public void Main(string[] args)
+    static public void Main()
     {
         var featureA = new Feature("Feature A", "Feature A description");
         var featureB = new Feature("Feature B", "Feature B description");
@@ -33,7 +33,6 @@ class Script
 
         //must be cleared to work with MediaTemplate
         project.Media.Clear();
-
         project.DefaultFeature = complete;
         project.UI = WUI.WixUI_FeatureTree;
         project.InstallerVersion = 200; //you may want to change it to match MSM module installer version

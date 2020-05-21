@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -33,7 +31,6 @@ namespace WixSharp.UI.Forms
 
         void FeaturesDialog_Load(object sender, System.EventArgs e)
         {
-            //Debug.Assert(false);
             string drawTextOnlyProp = Runtime.Session.Property("WixSharpUI_TreeNode_TexOnlyDrawing");
 
             bool drawTextOnly = true;
@@ -45,11 +42,9 @@ namespace WixSharp.UI.Forms
             }
             else
             {
-                float dpi = this.CreateGraphics().DpiY;
+                float dpi = CreateGraphics().DpiY;
                 if (dpi == 96) // the checkbox custom drawing is only compatible with 96 DPI
                     drawTextOnly = false;
-                else
-                    drawTextOnly = true;
             }
 
             ReadOnlyTreeNode.Behavior.AttachTo(featuresTree, drawTextOnly);
@@ -88,7 +83,12 @@ namespace WixSharp.UI.Forms
         /// <summary>
         /// The collection of the features selected by user as the features to be installed.
         /// </summary>
-        public static List<string> UserSelectedItems;
+        public static List<string> UserSelectedItems { get; private set; }
+
+        /// <summary>
+        /// The initial/default set of selected items (features) before user made any selection(s).
+        /// </summary>
+        public static List<string> InitialUserSelectedItems { get; private set; }
 
         void BuildFeaturesHierarchy()
         {
@@ -143,6 +143,11 @@ namespace WixSharp.UI.Forms
                      .Cast<TreeNode>()
                      .ForEach(node => featuresTree.Nodes.Add(node));
 
+            InitialUserSelectedItems = features.Where(x => x.IsViewChecked())
+                                               .Select(x => x.Name)
+                                               .OrderBy(x => x)
+                                               .ToList();
+
             isAutoCheckingActive = true;
         }
 
@@ -150,6 +155,7 @@ namespace WixSharp.UI.Forms
         {
             UserSelectedItems = features.Where(x => x.IsViewChecked())
                                         .Select(x => x.Name)
+                                        .OrderBy(x => x)
                                         .ToList();
         }
 
@@ -161,19 +167,29 @@ namespace WixSharp.UI.Forms
 
         void next_Click(object sender, System.EventArgs e)
         {
-            string itemsToInstall = features.Where(x => x.IsViewChecked())
-                                        .Select(x => x.Name)
-                                        .Join(",");
+            bool userChangedFeatures = UserSelectedItems?.JoinBy(",") != InitialUserSelectedItems.JoinBy(",");
 
-            string itemsToRemove = features.Where(x => !x.IsViewChecked())
-                                           .Select(x => x.Name)
-                                           .Join(",");
+            if (userChangedFeatures)
+            {
+                string itemsToInstall = features.Where(x => x.IsViewChecked())
+                                                .Select(x => x.Name)
+                                                .JoinBy(",");
 
-            if (itemsToRemove.Any())
-                Runtime.Session["REMOVE"] = itemsToRemove;
+                string itemsToRemove = features.Where(x => !x.IsViewChecked())
+                                               .Select(x => x.Name)
+                                               .JoinBy(",");
 
-            if (itemsToInstall.Any())
-                Runtime.Session["ADDLOCAL"] = itemsToInstall;
+                if (itemsToRemove.Any())
+                    Runtime.Session["REMOVE"] = itemsToRemove;
+
+                if (itemsToInstall.Any())
+                    Runtime.Session["ADDLOCAL"] = itemsToInstall;
+            }
+            else
+            {
+                Runtime.Session["REMOVE"] = "";
+                Runtime.Session["ADDLOCAL"] = "";
+            }
 
             SaveUserSelection();
             Shell.GoNext();
